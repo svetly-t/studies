@@ -3,33 +3,57 @@
 
 #include <iostream>
 
-class Kid {
+class V2d {
  public:
-    Kid(double init_x, double init_y) {
-        x = init_x;
-        y = init_y;
-        state = State::GROUND;
+    V2d() {
+        x = 0;
+        y = 0;
     }
-    enum State {
-        GROUND,
-        START_JUMPING,
-        JUMPING
-    };
-    State state;
     double x;
     double y;
-    double y_vel;
-    double x_vel;
 };
+
+class Kid {
+ public:
+    Kid() {
+        state = State::SLIDING;
+    }
+    enum State {
+        WALKING,
+        SLIDING,
+    };
+    State state;
+    V2d pos;
+    V2d vel;
+    V2d acc;
+};
+
+double terrain_function(double x) {
+    return 2.0 * sin(x / 2.0);
+}
+
+double terrain_function_derivative(double x) {
+    return cos(x / 2.0);
+}
 
 int main(int argc, char **argv) {
     const int kWindowX = 800; 
     const int kWindowY = 600;
+    const int kKidW = 16;
+    const int kKidH = 16;
+    const double kPixelToDouble = 0.1; // 1 pixel == 0.1 double; means kid is 1.6 meters
+    const double kDoubleToPixel = 10; // 1 double == 10 pixels; means kid is 1.6 meters
+    const double kGravity = 20.0;
 
-    Kid kid(kWindowX / 2, kWindowY / 2);
+    double kKidStartX = 8;
+    double kKidStartY = terrain_function(kKidStartX);
+
+    Kid kid;
+    kid.pos.x = kKidStartX;
+    kid.pos.y = kKidStartY;
 
     SDL_Init(SDL_INIT_EVERYTHING);
-    
+
     SDL_Window *sdl_window = SDL_CreateWindow("Newboy", 
                                           SDL_WINDOWPOS_UNDEFINED, 
                                           SDL_WINDOWPOS_UNDEFINED,
@@ -81,7 +105,7 @@ int main(int argc, char **argv) {
                         default:
                             break;
                     }
-                break;
+                    break;
                 case SDL_KEYUP:
                     switch( sdl_event.key.keysym.sym ){
                         case SDLK_LEFT:
@@ -95,34 +119,33 @@ int main(int argc, char **argv) {
                         default:
                             break;
                     }
-                break;
+                    break;
             }
         }
 
+        double slope;
+        double dot_product;
+        slope = terrain_function_derivative(kid.pos.x);
+        dot_product = kGravity * slope;
         switch (kid.state) {
-            case Kid::GROUND:
-                // flip between kid.sprite.running frames.
-                // kid needs a frame timer that increments by one each 1/60th of a second
-                // next run sprite is rendered after N frames
-                // speed of run cycle should be multiplied by the run speed
-                kid.x += (double)x * 20 * dt;
-                if (y == -1)
-                    kid.state = Kid::START_JUMPING;
-                break;
-            case Kid::START_JUMPING:
-                // sprite = kid.sprite.jump_buildup
-                kid.y_vel = 100;
-                kid.x_vel = (double)x * 20 * dt;
-                kid.state = Kid::JUMPING;
-                break;
-            case Kid::JUMPING:
-                // sprite = kid.sprite.jumping
-                kid.y -= kid.y_vel * dt;
-                kid.y_vel -= 100.0 * dt;
-                kid.x += kid.x_vel * 20 * dt;
-                if (kid.y >= kWindowY / 2) {
-                    kid.y = kWindowY / 2;
-                    kid.state = Kid::GROUND;
+            case Kid::SLIDING:
+                // use position to find point on curve
+                // get projection of gravity onto slope of curve
+                // (dot product is <1, mg> * <1, terrain_func_dx>)
+                // (pretend mass is 1 or something, just ignore)
+                // acceleration is a = (projection of weight onto tangent of curve) / mass
+                kid.acc.x = dot_product;
+                kid.acc.y = dot_product * slope;
+                // kid.vel += a * dt
+                kid.vel.x += kid.acc.x * dt;
+                kid.vel.y += kid.acc.y * dt;
+                // kid.pos += kid.vel * dt
+                kid.pos.x += kid.vel.x * dt;
+                kid.pos.y += kid.vel.y * dt;
+                // constrain to keep the kid on the line
+                if (kid.pos.y > terrain_function(kid.pos.x)) {
+                    kid.pos.y = terrain_function(kid.pos.x);
+                    kid.vel.y -= kid.acc.y * dt;
                 }
                 break;
             default:
@@ -134,12 +157,28 @@ int main(int argc, char **argv) {
 
         // kid struct to sdl native rect
         SDL_Rect sdl_rect1;
-        sdl_rect1.x = kid.x;
-        sdl_rect1.y = kid.y;
-        sdl_rect1.w = 16;
-        sdl_rect1.h = 16;
+        sdl_rect1.x = kid.pos.x * kDoubleToPixel + kWindowX / 2;
+        sdl_rect1.y = kid.pos.y * kDoubleToPixel + kWindowY / 2;
+        sdl_rect1.w = kKidW;
+        sdl_rect1.h = kKidH;
         
         SDL_SetRenderDrawColor(sdl_renderer, 255, 255, 255, 255);
+
+        // draw terrain curve across the middle of screen
+        const int kSegments = 100;
+        int segment = 0;
+        SDL_Point points[kSegments];
+        double dx = -kWindowX / 2 * kPixelToDouble;
+        double dy;
+        for (; segment < kSegments; ++segment) {
+            points[segment].x = kWindowX / kSegments * segment;
+            points[segment].y = terrain_function(dx) * kDoubleToPixel + kWindowY / 2;
+
+            dx += kWindowX / kSegments * kPixelToDouble;
+        }
+        SDL_RenderDrawLines(sdl_renderer, points, kSegments);
+
+        // Draw kid rect
         SDL_RenderDrawRect(sdl_renderer, &sdl_rect1);
 
         SDL_UpdateWindowSurface(sdl_window);
