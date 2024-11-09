@@ -51,6 +51,8 @@ int main(int argc, char **argv) {
 
     SDL_KeyboardEvent *key;
 
+    // load kid.png sprite sheet
+
     SDL_Event sdl_event;
     bool exit = false;
     int x = 0, y = 0;
@@ -99,16 +101,22 @@ int main(int argc, char **argv) {
 
         switch (kid.state) {
             case Kid::GROUND:
+                // flip between kid.sprite.running frames.
+                // kid needs a frame timer that increments by one each 1/60th of a second
+                // next run sprite is rendered after N frames
+                // speed of run cycle should be multiplied by the run speed
                 kid.x += (double)x * 20 * dt;
                 if (y == -1)
                     kid.state = Kid::START_JUMPING;
                 break;
             case Kid::START_JUMPING:
+                // sprite = kid.sprite.jump_buildup
                 kid.y_vel = 100;
                 kid.x_vel = (double)x * 20 * dt;
                 kid.state = Kid::JUMPING;
                 break;
             case Kid::JUMPING:
+                // sprite = kid.sprite.jumping
                 kid.y -= kid.y_vel * dt;
                 kid.y_vel -= 100.0 * dt;
                 kid.x += kid.x_vel * 20 * dt;
@@ -141,9 +149,4 @@ int main(int argc, char **argv) {
     }
 
     return EXIT_SUCCESS;
-
-    // if left, decrement x
-    // if right, increment x
-
-    // if spacebar, jump
 }
