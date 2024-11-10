@@ -9,6 +9,66 @@ class V2d {
         x = 0;
         y = 0;
     }
+    V2d(double ix, double iy) {
+        x = ix;
+        y = iy;
+    }
+    double operator*(const V2d &other) {
+        return x * other.x + y * other.y;
+    }
+    V2d& operator+=(const V2d& o) {
+        x += o.x;
+        y += o.y;
+        return *this;
+    }
+    V2d& operator-=(const V2d& o) {
+        x -= o.x;
+        y -= o.y;
+        return *this;
+    }
+    V2d& operator/=(const double& d) {
+        x /= d;
+        y /= d;
+        return *this;
+    }
+    V2d& operator*=(const double& d) {
+        x *= d;
+        y *= d;
+        return *this;
+    }
+    V2d operator*(const double& d) const {
+        V2d result;
+        result.x = x * d;
+        result.y = y * d;
+        return result;
+    }
+    V2d operator/(const double& d) const {
+        V2d result;
+        result.x = x / d;
+        result.y = y / d;
+        return result;
+    }
+    V2d operator+(const V2d& o) const {
+        V2d result;
+        result.x = x + o.x;
+        result.y = y + o.y;
+        return result;
+    }
+    V2d operator-(const V2d& o) const {
+        V2d result;
+        result.x = x - o.x;
+        result.y = y - o.y;
+        return result;
+    }
+    double operator*(const V2d& o) const {
+        return x * o.x + y * o.y;
+    }
+    double Magnitude() {
+        return x * x + y * y;
+    }
+    V2d Normalized() {
+        return *this / this->Magnitude();
+    }
     double x;
     double y;
 };
@@ -21,6 +81,7 @@ class Kid {
     enum State {
         WALKING,
         SLIDING,
+        FALLING,
     };
     State state;
     V2d pos;
@@ -28,12 +89,29 @@ class Kid {
     V2d acc;
 };
 
+const double kTerrainSlack = 0.1;
+
 double terrain_function(double x) {
     return 2.0 * sin(x / 2.0);
 }
 
 double terrain_function_derivative(double x) {
     return cos(x / 2.0);
+}
+
+V2d terrain_function_tangent(double x) {
+    V2d result;
+    result.x = 1;
+    result.y = terrain_function_derivative(x);
+    return result.Normalized();
+}
+
+V2d terrain_function_normal(double x) {
+    V2d result = terrain_function_tangent(x);
+    double temp = result.x;
+    result.x = -result.y;
+    result.y = temp;
+    return result;
 }
 
 int main(int argc, char **argv) {
@@ -79,7 +157,8 @@ int main(int argc, char **argv) {
 
     SDL_Event sdl_event;
     bool exit = false;
-    int x = 0, y = 0;
+    int kx = 0, ky = 0, kf = 0;
+    int kxp = 0, kyp = 0, kfp = 0;
     float dt = 16.0 / 1000.0;
     for (;!exit;) {
         // Event loop
@@ -91,16 +170,23 @@ int main(int argc, char **argv) {
                 case SDL_KEYDOWN:
                     switch( sdl_event.key.keysym.sym ){
                         case SDLK_LEFT:
-                            x = -1;
+                            kx = -1;
+                            if (!kxp) kxp = -1;
                             break;
                         case SDLK_RIGHT:
-                            x = 1;
+                            kx = 1;
+                            if (!kxp) kxp = 1;
                             break;
                         case SDLK_UP:
-                            y = -1;
+                            ky = -1;
+                            if (!kyp) kyp = -1;
                             break;
                         case SDLK_DOWN:
-                            y = 1;
+                            ky = 1;
+                            if (!kyp) kyp = 1;
+                            break;
+                        case SDLK_SPACE:
+                            kf = 1;
                             break;
                         default:
                             break;
@@ -110,11 +196,14 @@ int main(int argc, char **argv) {
                     switch( sdl_event.key.keysym.sym ){
                         case SDLK_LEFT:
                         case SDLK_RIGHT:
-                            x = 0;
+                            kx = 0;
                             break;
                         case SDLK_UP:
                         case SDLK_DOWN:
-                            y = 0;
+                            ky = 0;
+                            break;
+                        case SDLK_SPACE:
+                            kf = 0;
                             break;
                         default:
                             break;
@@ -125,17 +214,27 @@ int main(int argc, char **argv) {
 
         double slope;
         double dot_product;
+        V2d tangent = terrain_function_tangent(kid.pos.x);
+        V2d normal = terrain_function_normal(kid.pos.x);
+        V2d gravity(0.0, kGravity);
+        V2d gravity_projected_onto_terrain =  tangent * (gravity * tangent);
         slope = terrain_function_derivative(kid.pos.x);
         dot_product = kGravity * slope;
         switch (kid.state) {
-            case Kid::SLIDING:
-                // use position to find point on curve
-                // get projection of gravity onto slope of curve
-                // (dot product is <1, mg> * <1, terrain_func_dx>)
-                // (pretend mass is 1 or something, just ignore)
-                // acceleration is a = (projection of weight onto tangent of curve) / mass
-                kid.acc.x = dot_product;
-                kid.acc.y = dot_product * slope;
+            // case Kid::WALKING:
+            //     // Movement
+            //     kid.vel.x = (double)kx;
+            //     kid.vel.y = (double)kx * terrain_function_derivative(kid.pos.x);
+            //     kid.pos.x += kid.vel.x * dt;
+            //     kid.pos.y += kid.vel.y * dt;
+            //     if (kf == 1) {
+            //         kid.state = Kid::SLIDING;
+            //         break;
+            //     }
+            //     break;
+            case Kid::FALLING:
+                kid.acc.x = 0;
+                kid.acc.y = kGravity;
                 // kid.vel += a * dt
                 kid.vel.x += kid.acc.x * dt;
                 kid.vel.y += kid.acc.y * dt;
@@ -146,11 +245,54 @@ int main(int argc, char **argv) {
                 if (kid.pos.y > terrain_function(kid.pos.x)) {
                     kid.pos.y = terrain_function(kid.pos.x);
                     kid.vel.y -= kid.acc.y * dt;
+                    kid.state = Kid::SLIDING;
+                    break;
                 }
+                break;
+            case Kid::SLIDING:
+                // acceleration is (projection of weight onto tangent of terrain curve) / mass
+                // kid.acc.x = dot_product;
+                // kid.acc.y = dot_product * slope;
+                kid.acc = gravity_projected_onto_terrain;
+                // Add to this the projection of directional boost
+                kid.acc.x += (double)kx * 8.0;
+                kid.acc.y += (double)kx * 8.0 * terrain_function_derivative(kid.pos.x);
+                // kid.vel += a * dt
+                kid.vel.x += kid.acc.x * dt;
+                kid.vel.y += kid.acc.y * dt;
+                // directly kick velocity on left, right button press
+                if (kxp) {
+                    kid.vel.x += (double)kx * 8.0;
+                    kid.vel.y += (double)kx * 8.0 * terrain_function_derivative(kid.pos.x);
+                }
+                // kid.pos += kid.vel * dt
+                kid.pos.x += kid.vel.x * dt;
+                kid.pos.y += kid.vel.y * dt;
+                // if significantly above the ground we're falling
+                if (kid.pos.y < terrain_function(kid.pos.x) - kTerrainSlack) {
+                    kid.state = Kid::FALLING;
+                    break;
+                }
+                // constrain to keep the kid on the line
+                if (kid.pos.y > terrain_function(kid.pos.x)) {
+                    kid.pos.y = terrain_function(kid.pos.x);
+                    // kill the portion of velocity that is in the direction of the terrain
+                    kid.vel -= normal * (kid.vel * normal);
+                }
+                // Go back to walking if spacebar not pressed
+                // if (kf == 0) {
+                //     kid.state = Kid::WALKING;
+                //     break;
+                // }
                 break;
             default:
                 break;
         }
+
+        // Transient button presses get cleared here
+        kxp = 0;
+        kyp = 0;
+        kfp = 0;
 
         // draw
         SDL_FillRect(sdl_surface, NULL, SDL_MapRGB(sdl_surface->format, 0, 0, 0));
@@ -177,6 +319,9 @@ int main(int argc, char **argv) {
             dx += kWindowX / kSegments * kPixelToDouble;
         }
         SDL_RenderDrawLines(sdl_renderer, points, kSegments);
+
+        // Draw debug velocity ray
+        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + kid.vel.x, sdl_rect1.y + kid.vel.y);
 
         // Draw kid rect
         SDL_RenderDrawRect(sdl_renderer, &sdl_rect1);
