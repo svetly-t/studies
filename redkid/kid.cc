@@ -89,6 +89,11 @@ class Kid {
     V2d acc;
 };
 
+class Camera {
+ public:
+    V2d pos;
+};
+
 const double kTerrainSlack = 0.1;
 
 double terrain_function(double x) {
@@ -129,6 +134,8 @@ int main(int argc, char **argv) {
     Kid kid;
     kid.pos.x = kKidStartX;
     kid.pos.y = kKidStartY;
+
+    Camera camera;
 
     SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -171,19 +178,19 @@ int main(int argc, char **argv) {
                     switch( sdl_event.key.keysym.sym ){
                         case SDLK_LEFT:
                             kx = -1;
-                            if (!kxp) kxp = -1;
+                            if (!kx) kxp = -1;
                             break;
                         case SDLK_RIGHT:
                             kx = 1;
-                            if (!kxp) kxp = 1;
+                            if (!kx) kxp = 1;
                             break;
                         case SDLK_UP:
                             ky = -1;
-                            if (!kyp) kyp = -1;
+                            if (!ky) kyp = -1;
                             break;
                         case SDLK_DOWN:
                             ky = 1;
-                            if (!kyp) kyp = 1;
+                            if (!ky) kyp = 1;
                             break;
                         case SDLK_SPACE:
                             kf = 1;
@@ -251,8 +258,6 @@ int main(int argc, char **argv) {
                 break;
             case Kid::SLIDING:
                 // acceleration is (projection of weight onto tangent of terrain curve) / mass
-                // kid.acc.x = dot_product;
-                // kid.acc.y = dot_product * slope;
                 kid.acc = gravity_projected_onto_terrain;
                 // Add to this the projection of directional boost
                 kid.acc.x += (double)kx * 8.0;
@@ -262,8 +267,8 @@ int main(int argc, char **argv) {
                 kid.vel.y += kid.acc.y * dt;
                 // directly kick velocity on left, right button press
                 if (kxp) {
-                    kid.vel.x += (double)kx * 8.0;
-                    kid.vel.y += (double)kx * 8.0 * terrain_function_derivative(kid.pos.x);
+                    kid.vel.x += (double)kx * 16.0;
+                    kid.vel.y += (double)kx * 16.0 * terrain_function_derivative(kid.pos.x);
                 }
                 // kid.pos += kid.vel * dt
                 kid.pos.x += kid.vel.x * dt;
@@ -294,12 +299,16 @@ int main(int argc, char **argv) {
         kyp = 0;
         kfp = 0;
 
+        // Move the camera so that the player is always in the center of the view window
+        camera.pos.x = kid.pos.x;
+        // camera.pos.y = kid.pos.y - (kWindowY / 2) * kPixelToDouble;
+
         // draw
         SDL_FillRect(sdl_surface, NULL, SDL_MapRGB(sdl_surface->format, 0, 0, 0));
 
         // kid struct to sdl native rect
         SDL_Rect sdl_rect1;
-        sdl_rect1.x = kid.pos.x * kDoubleToPixel + kWindowX / 2;
+        sdl_rect1.x = (camera.pos.x - kid.pos.x) * kDoubleToPixel + kWindowX / 2;
         sdl_rect1.y = kid.pos.y * kDoubleToPixel + kWindowY / 2;
         sdl_rect1.w = kKidW;
         sdl_rect1.h = kKidH;
@@ -310,7 +319,8 @@ int main(int argc, char **argv) {
         const int kSegments = 100;
         int segment = 0;
         SDL_Point points[kSegments];
-        double dx = -kWindowX / 2 * kPixelToDouble;
+        // draw only the part of the curve that's in the window.
+        double dx = camera.pos.x - (kWindowX / 2 * kPixelToDouble);
         double dy;
         for (; segment < kSegments; ++segment) {
             points[segment].x = kWindowX / kSegments * segment;
