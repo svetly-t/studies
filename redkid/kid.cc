@@ -3,6 +3,10 @@
 
 #include <iostream>
 
+double Lerp(double from, double to, double factor) {
+    return from + (to - from) * factor;
+}
+
 class V2d {
  public:
     V2d() {
@@ -241,7 +245,7 @@ int main(int argc, char **argv) {
             //     break;
             case Kid::FALLING:
                 kid.acc.x = 0;
-                kid.acc.y = kGravity;
+                kid.acc.y = kGravity + (double)ky * kGravity;
                 // kid.vel += a * dt
                 kid.vel.x += kid.acc.x * dt;
                 kid.vel.y += kid.acc.y * dt;
@@ -300,7 +304,10 @@ int main(int argc, char **argv) {
         kfp = 0;
 
         // Move the camera so that the player is always in the center of the view window
-        camera.pos.x = kid.pos.x;
+        // Add an offset so that, plus velocity vector, we shift in the direction player is going
+        // camera.pos.x = kid.pos.x + kid.vel.x;
+        camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
+
         // camera.pos.y = kid.pos.y - (kWindowY / 2) * kPixelToDouble;
 
         // draw
@@ -308,7 +315,7 @@ int main(int argc, char **argv) {
 
         // kid struct to sdl native rect
         SDL_Rect sdl_rect1;
-        sdl_rect1.x = (camera.pos.x - kid.pos.x) * kDoubleToPixel + kWindowX / 2;
+        sdl_rect1.x = (kid.pos.x - camera.pos.x) * kDoubleToPixel + kWindowX / 2;
         sdl_rect1.y = kid.pos.y * kDoubleToPixel + kWindowY / 2;
         sdl_rect1.w = kKidW;
         sdl_rect1.h = kKidH;
@@ -321,7 +328,6 @@ int main(int argc, char **argv) {
         SDL_Point points[kSegments];
         // draw only the part of the curve that's in the window.
         double dx = camera.pos.x - (kWindowX / 2 * kPixelToDouble);
-        double dy;
         for (; segment < kSegments; ++segment) {
             points[segment].x = kWindowX / kSegments * segment;
             points[segment].y = terrain_function(dx) * kDoubleToPixel + kWindowY / 2;
