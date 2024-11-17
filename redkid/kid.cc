@@ -2,80 +2,13 @@
 #include <SDL2/SDL_image.h>
 
 #include <iostream>
+#include <algorithm>
+
+#include "v2d.h"
 
 double Lerp(double from, double to, double factor) {
     return from + (to - from) * factor;
 }
-
-class V2d {
- public:
-    V2d() {
-        x = 0;
-        y = 0;
-    }
-    V2d(double ix, double iy) {
-        x = ix;
-        y = iy;
-    }
-    double operator*(const V2d &other) {
-        return x * other.x + y * other.y;
-    }
-    V2d& operator+=(const V2d& o) {
-        x += o.x;
-        y += o.y;
-        return *this;
-    }
-    V2d& operator-=(const V2d& o) {
-        x -= o.x;
-        y -= o.y;
-        return *this;
-    }
-    V2d& operator/=(const double& d) {
-        x /= d;
-        y /= d;
-        return *this;
-    }
-    V2d& operator*=(const double& d) {
-        x *= d;
-        y *= d;
-        return *this;
-    }
-    V2d operator*(const double& d) const {
-        V2d result;
-        result.x = x * d;
-        result.y = y * d;
-        return result;
-    }
-    V2d operator/(const double& d) const {
-        V2d result;
-        result.x = x / d;
-        result.y = y / d;
-        return result;
-    }
-    V2d operator+(const V2d& o) const {
-        V2d result;
-        result.x = x + o.x;
-        result.y = y + o.y;
-        return result;
-    }
-    V2d operator-(const V2d& o) const {
-        V2d result;
-        result.x = x - o.x;
-        result.y = y - o.y;
-        return result;
-    }
-    double operator*(const V2d& o) const {
-        return x * o.x + y * o.y;
-    }
-    double Magnitude() {
-        return x * x + y * y;
-    }
-    V2d Normalized() {
-        return *this / this->Magnitude();
-    }
-    double x;
-    double y;
-};
 
 class Kid {
  public:
@@ -86,11 +19,18 @@ class Kid {
         WALKING,
         SLIDING,
         FALLING,
+        START_EASING,
+        EASING
     };
     State state;
+    V2d pos_initial;
+    V2d pos_final;
     V2d pos;
     V2d vel;
     V2d acc;
+
+    V2d ease_axis;
+    double ease_frame;
 };
 
 class Camera {
@@ -98,7 +38,7 @@ class Camera {
     V2d pos;
 };
 
-const double kTerrainSlack = 0.5;
+const double kTerrainSlack = 1.0;
 
 double terrain_function(double x) {
     return 2.0 * sin(x / 2.0);
@@ -164,8 +104,6 @@ int main(int argc, char **argv) {
 
     SDL_KeyboardEvent *key;
 
-    // load kid.png sprite sheet
-
     SDL_Event sdl_event;
     bool exit = false;
     int kx = 0, ky = 0, kf = 0;
@@ -225,6 +163,8 @@ int main(int argc, char **argv) {
 
         double slope;
         double dot_product;
+        V2d ease_span;
+        V2d final_tangent;
         V2d tangent = terrain_function_tangent(kid.pos.x);
         V2d normal = terrain_function_normal(kid.pos.x);
         V2d gravity(0.0, kGravity);
@@ -243,6 +183,28 @@ int main(int argc, char **argv) {
             //         break;
             //     }
             //     break;
+            case Kid::START_EASING:
+                kid.ease_frame = 0;
+                kid.pos_initial = kid.pos;
+                kid.pos_final = kid.pos + (kid.vel * dt * 14);
+                // kid.ease_axis = kid.pos_final - kid.pos_initial;
+                kid.pos_final.x += kid.vel.x * dt * 6.0;
+                kid.pos_final.y = terrain_function(kid.pos_final.x);
+                // final_tangent *= (kid.vel.Normalized().x > 0) - (kid.vel.Normalized().x < 0);
+                kid.state = Kid::EASING;
+                break;
+            case Kid::EASING:
+                ease_span = (gravity * dt * 14);
+
+                kid.pos = kid.pos_final * kid.ease_frame / 14.0 + (kid.pos_initial + ease_span * kid.ease_frame / 14.0) * (14.0 - kid.ease_frame) / 14.0;
+                
+                kid.ease_frame += 1;
+                if (kid.ease_frame >= 14) {
+                    kid.vel = terrain_function_tangent(kid.pos.x) * kid.vel.Magnitude() * ((kid.vel.x > 0) - (kid.vel.x < 0));
+                    kid.state = Kid::SLIDING;
+                    break;
+                }
+                break;
             case Kid::FALLING:
                 kid.acc.x = 0;
                 kid.acc.y = kGravity + (double)ky * kGravity;
@@ -255,9 +217,20 @@ int main(int argc, char **argv) {
                 // constrain to keep the kid on the line
                 if (kid.pos.y > terrain_function(kid.pos.x)) {
                     kid.pos.y = terrain_function(kid.pos.x);
-                    kid.vel.y -= kid.acc.y * dt;
+                    kid.vel -= normal * (kid.vel * normal);
                     kid.state = Kid::SLIDING;
                     break;
+                }
+                // Project out the velocity to start easing
+                if (kid.pos.y < terrain_function(kid.pos.x) - kTerrainSlack) {
+                    kid.pos_final = kid.pos + kid.vel * dt * 14;
+                    if (kid.pos_final.y > terrain_function(kid.pos_final.x)) {
+                        kid.pos_final = kid.pos + kid.vel * dt * 3;
+                        if (kid.pos_final.y < terrain_function(kid.pos_final.x)) {
+                            kid.state = Kid::START_EASING;
+                            break;
+                        }
+                    }
                 }
                 break;
             case Kid::SLIDING:
