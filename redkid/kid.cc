@@ -98,7 +98,7 @@ class Camera {
     V2d pos;
 };
 
-const double kTerrainSlack = 0.1;
+const double kTerrainSlack = 0.5;
 
 double terrain_function(double x) {
     return 2.0 * sin(x / 2.0);
