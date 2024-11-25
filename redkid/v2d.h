@@ -60,6 +60,13 @@ class V2d {
     double operator*(const V2d& o) const {
         return x * o.x + y * o.y;
     }
+    // Unary negative operator
+    V2d operator-() const {
+        V2d v;
+        v.x = -x;
+        v.y = -y;
+        return v;
+    }
     double Magnitude() {
         return sqrt(x * x + y * y);
     }

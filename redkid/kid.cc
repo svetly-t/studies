@@ -18,9 +18,10 @@ class Kid {
     enum State {
         WALKING,
         SLIDING,
+        STOP_SLIDING,
         FALLING,
-        START_EASING,
-        EASING
+        SKIDDING,
+        IDLE,
     };
     State state;
     V2d pos_initial;
@@ -38,14 +39,14 @@ class Camera {
     V2d pos;
 };
 
-const double kTerrainSlack = 1.0;
+const double kTerrainSlack = 0.0;
 
 double terrain_function(double x) {
-    return 2.0 * sin(x / 2.0);
+    return 2.0 * sin(x / 2.0 + (SDL_GetTicks64() / 1000.0));
 }
 
 double terrain_function_derivative(double x) {
-    return cos(x / 2.0);
+    return cos(x / 2.0 + (SDL_GetTicks64() / 1000.0));
 }
 
 V2d terrain_function_tangent(double x) {
@@ -106,8 +107,8 @@ int main(int argc, char **argv) {
 
     SDL_Event sdl_event;
     bool exit = false;
-    int kx = 0, ky = 0, kf = 0;
-    int kxp = 0, kyp = 0, kfp = 0;
+    int kx = 0, ky = 0, ks = 0;
+    int kxp = 0, kyp = 0, ksp = 0;
     float dt = 16.0 / 1000.0;
     for (;!exit;) {
         // Event loop
@@ -135,7 +136,7 @@ int main(int argc, char **argv) {
                             if (!ky) kyp = 1;
                             break;
                         case SDLK_SPACE:
-                            kf = 1;
+                            ks = 1;
                             break;
                         default:
                             break;
@@ -152,7 +153,7 @@ int main(int argc, char **argv) {
                             ky = 0;
                             break;
                         case SDLK_SPACE:
-                            kf = 0;
+                            ks = 0;
                             break;
                         default:
                             break;
@@ -161,50 +162,17 @@ int main(int argc, char **argv) {
             }
         }
 
-        double slope;
-        double dot_product;
-        V2d ease_span;
-        V2d final_tangent;
+        double coeff_of_friction = 0.1;
         V2d tangent = terrain_function_tangent(kid.pos.x);
         V2d normal = terrain_function_normal(kid.pos.x);
         V2d gravity(0.0, kGravity);
         V2d gravity_projected_onto_terrain =  tangent * (gravity * tangent);
-        slope = terrain_function_derivative(kid.pos.x);
-        dot_product = kGravity * slope;
+        V2d gravity_projected_onto_normal =  normal * (gravity * normal);
+        V2d friction_force = tangent * coeff_of_friction * gravity_projected_onto_normal.Magnitude();
+        // friction should oppose the direction of movement
+        if (friction_force * gravity_projected_onto_terrain > 0)
+            friction_force = -friction_force;
         switch (kid.state) {
-            // case Kid::WALKING:
-            //     // Movement
-            //     kid.vel.x = (double)kx;
-            //     kid.vel.y = (double)kx * terrain_function_derivative(kid.pos.x);
-            //     kid.pos.x += kid.vel.x * dt;
-            //     kid.pos.y += kid.vel.y * dt;
-            //     if (kf == 1) {
-            //         kid.state = Kid::SLIDING;
-            //         break;
-            //     }
-            //     break;
-            case Kid::START_EASING:
-                kid.ease_frame = 0;
-                kid.pos_initial = kid.pos;
-                kid.pos_final = kid.pos + (kid.vel * dt * 14);
-                // kid.ease_axis = kid.pos_final - kid.pos_initial;
-                kid.pos_final.x += kid.vel.x * dt * 6.0;
-                kid.pos_final.y = terrain_function(kid.pos_final.x);
-                // final_tangent *= (kid.vel.Normalized().x > 0) - (kid.vel.Normalized().x < 0);
-                kid.state = Kid::EASING;
-                break;
-            case Kid::EASING:
-                ease_span = (gravity * dt * 14);
-
-                kid.pos = kid.pos_final * kid.ease_frame / 14.0 + (kid.pos_initial + ease_span * kid.ease_frame / 14.0) * (14.0 - kid.ease_frame) / 14.0;
-                
-                kid.ease_frame += 1;
-                if (kid.ease_frame >= 14) {
-                    kid.vel = terrain_function_tangent(kid.pos.x) * kid.vel.Magnitude() * ((kid.vel.x > 0) - (kid.vel.x < 0));
-                    kid.state = Kid::SLIDING;
-                    break;
-                }
-                break;
             case Kid::FALLING:
                 kid.acc.x = 0;
                 kid.acc.y = kGravity + (double)ky * kGravity;
@@ -220,17 +188,6 @@ int main(int argc, char **argv) {
                     kid.vel -= normal * (kid.vel * normal);
                     kid.state = Kid::SLIDING;
                     break;
-                }
-                // Project out the velocity to start easing
-                if (kid.pos.y < terrain_function(kid.pos.x) - kTerrainSlack) {
-                    kid.pos_final = kid.pos + kid.vel * dt * 14;
-                    if (kid.pos_final.y > terrain_function(kid.pos_final.x)) {
-                        kid.pos_final = kid.pos + kid.vel * dt * 3;
-                        if (kid.pos_final.y < terrain_function(kid.pos_final.x)) {
-                            kid.state = Kid::START_EASING;
-                            break;
-                        }
-                    }
                 }
                 break;
             case Kid::SLIDING:
@@ -261,11 +218,51 @@ int main(int argc, char **argv) {
                     // kill the portion of velocity that is in the direction of the terrain
                     kid.vel -= normal * (kid.vel * normal);
                 }
-                // Go back to walking if spacebar not pressed
-                // if (kf == 0) {
-                //     kid.state = Kid::WALKING;
-                //     break;
-                // }
+                // Stop sliding if spacebar not pressed
+                if (ks == 0) {
+                    kid.state = Kid::STOP_SLIDING;
+                    break;
+                }
+                break;
+            case Kid::STOP_SLIDING:
+                // acceleration is (projection of weight onto tangent of terrain curve) / mass
+                kid.acc = gravity_projected_onto_terrain + friction_force;
+                // kid.vel += a * dt
+                kid.vel.x += kid.acc.x * dt;
+                kid.vel.y += kid.acc.y * dt;
+                // kid.pos += kid.vel * dt
+                kid.pos.x += kid.vel.x * dt;
+                kid.pos.y += kid.vel.y * dt;
+                // if significantly above the ground we're falling
+                if (kid.pos.y < terrain_function(kid.pos.x) - kTerrainSlack) {
+                    kid.state = Kid::FALLING;
+                    break;
+                }
+                // constrain to keep the kid on the line
+                if (kid.pos.y > terrain_function(kid.pos.x)) {
+                    kid.pos.y = terrain_function(kid.pos.x);
+                    // kill the portion of velocity that is in the direction of the terrain
+                    kid.vel -= normal * (kid.vel * normal);
+                }
+                if (kid.vel.Magnitude() < 0.1) {
+                    kid.state = Kid::IDLE;
+                    kid.vel.x = 0;
+                    kid.vel.y = 0;
+                    break;
+                }
+                // Go back to sliding if spacebar not pressed
+                if (ks == 1) {
+                    kid.state = Kid::SLIDING;
+                    break;
+                }
+                break;
+            case Kid::IDLE:
+                kid.pos.y = terrain_function(kid.pos.x);
+                // Go back to sliding if spacebar not pressed
+                if (ks == 1) {
+                    kid.state = Kid::SLIDING;
+                    break;
+                }
                 break;
             default:
                 break;
@@ -274,7 +271,7 @@ int main(int argc, char **argv) {
         // Transient button presses get cleared here
         kxp = 0;
         kyp = 0;
-        kfp = 0;
+        ksp = 0;
 
         // Move the camera so that the player is always in the center of the view window
         // Add an offset so that, plus velocity vector, we shift in the direction player is going
@@ -314,6 +311,18 @@ int main(int argc, char **argv) {
 
         // Draw kid rect
         SDL_RenderDrawRect(sdl_renderer, &sdl_rect1);
+
+        SDL_SetRenderDrawColor(sdl_renderer, 255, 0, 0, 255);
+        // Draw debug normal ray
+        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + normal.x * 10, sdl_rect1.y + normal.y * 10);
+        
+        SDL_SetRenderDrawColor(sdl_renderer, 0, 125, 255, 255);
+        // Draw debug friction ray
+        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + friction_force.x, sdl_rect1.y + friction_force.y);
+
+        SDL_SetRenderDrawColor(sdl_renderer, 0, 255, 125, 255);
+        // Draw debug force of gravity ray
+        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + gravity_projected_onto_terrain.x, sdl_rect1.y + gravity_projected_onto_terrain.y);
 
         SDL_UpdateWindowSurface(sdl_window);
 
