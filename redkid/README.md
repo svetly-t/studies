@@ -29,3 +29,26 @@ make win
 ```
 
 `kid.exe` must be run from within the msys2 shell. Otherwise Windows can't find the libstdc++ or SDL2 DLLs. This is a future problem!
+
+For intellisense support, your `.vscode/c_cpp_properties.json` should look something like this:
+```
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "\"C:\\msys64\\mingw64\\include\\**\""
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
+}
+```
