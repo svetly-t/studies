@@ -4,7 +4,8 @@
 #include <iostream>
 #include <algorithm>
 
-#include "v2d.h"
+#include "include/camera.h"
+#include "include/v2d.h"
 
 double Lerp(double from, double to, double factor) {
     return from + (to - from) * factor;
@@ -34,19 +35,14 @@ class Kid {
     double ease_frame;
 };
 
-class Camera {
- public:
-    V2d pos;
-};
-
 const double kTerrainSlack = 0.0;
 
 double terrain_function(double x) {
-    return 2.0 * sin(x / 2.0 + (SDL_GetTicks64() / 1000.0));
+    return 2.0 * sin(x / 2.0);
 }
 
 double terrain_function_derivative(double x) {
-    return cos(x / 2.0 + (SDL_GetTicks64() / 1000.0));
+    return cos(x / 2.0);
 }
 
 V2d terrain_function_tangent(double x) {
@@ -69,8 +65,6 @@ int main(int argc, char **argv) {
     const int kWindowY = 600;
     const int kKidW = 16;
     const int kKidH = 16;
-    const double kPixelToDouble = 0.1; // 1 pixel == 0.1 double; means kid is 1.6 meters
-    const double kDoubleToPixel = 10; // 1 double == 10 pixels; means kid is 1.6 meters
     const double kGravity = 20.0;
 
     double kKidStartX = 8;
@@ -79,8 +73,6 @@ int main(int argc, char **argv) {
     Kid kid;
     kid.pos.x = kKidStartX;
     kid.pos.y = kKidStartY;
-
-    Camera camera;
 
     SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -102,6 +94,8 @@ int main(int argc, char **argv) {
     }
 
     SDL_Renderer *sdl_renderer = SDL_CreateSoftwareRenderer(sdl_surface);
+
+    Camera camera(sdl_renderer, kWindowY, kWindowX);
 
     SDL_KeyboardEvent *key;
 
@@ -278,51 +272,31 @@ int main(int argc, char **argv) {
         // camera.pos.x = kid.pos.x + kid.vel.x;
         camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
 
-        // camera.pos.y = kid.pos.y - (kWindowY / 2) * kPixelToDouble;
-
         // draw
         SDL_FillRect(sdl_surface, NULL, SDL_MapRGB(sdl_surface->format, 0, 0, 0));
 
-        // kid struct to sdl native rect
-        SDL_Rect sdl_rect1;
-        sdl_rect1.x = (kid.pos.x - camera.pos.x) * kDoubleToPixel + kWindowX / 2;
-        sdl_rect1.y = kid.pos.y * kDoubleToPixel + kWindowY / 2;
-        sdl_rect1.w = kKidW;
-        sdl_rect1.h = kKidH;
-        
         SDL_SetRenderDrawColor(sdl_renderer, 255, 255, 255, 255);
 
-        // draw terrain curve across the middle of screen
-        const int kSegments = 100;
-        int segment = 0;
-        SDL_Point points[kSegments];
-        // draw only the part of the curve that's in the window.
-        double dx = camera.pos.x - (kWindowX / 2 * kPixelToDouble);
-        for (; segment < kSegments; ++segment) {
-            points[segment].x = kWindowX / kSegments * segment;
-            points[segment].y = terrain_function(dx) * kDoubleToPixel + kWindowY / 2;
+        camera.DrawTerrain(terrain_function);
 
-            dx += kWindowX / kSegments * kPixelToDouble;
-        }
-        SDL_RenderDrawLines(sdl_renderer, points, kSegments);
+        camera.DrawBox(kid.pos);
+
+        V2d kid_pos = camera.ToScreenSpace(kid.pos);
 
         // Draw debug velocity ray
-        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + kid.vel.x, sdl_rect1.y + kid.vel.y);
-
-        // Draw kid rect
-        SDL_RenderDrawRect(sdl_renderer, &sdl_rect1);
+        SDL_RenderDrawLine(sdl_renderer, kid_pos.x, kid_pos.y, kid_pos.x + kid.vel.x, kid_pos.y + kid.vel.y);
 
         SDL_SetRenderDrawColor(sdl_renderer, 255, 0, 0, 255);
         // Draw debug normal ray
-        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + normal.x * 10, sdl_rect1.y + normal.y * 10);
+        SDL_RenderDrawLine(sdl_renderer, kid_pos.x, kid_pos.y, kid_pos.x + normal.x * 10, kid_pos.y + normal.y * 10);
         
         SDL_SetRenderDrawColor(sdl_renderer, 0, 125, 255, 255);
         // Draw debug friction ray
-        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + friction_force.x, sdl_rect1.y + friction_force.y);
+        SDL_RenderDrawLine(sdl_renderer, kid_pos.x, kid_pos.y, kid_pos.x + friction_force.x, kid_pos.y + friction_force.y);
 
         SDL_SetRenderDrawColor(sdl_renderer, 0, 255, 125, 255);
         // Draw debug force of gravity ray
-        SDL_RenderDrawLine(sdl_renderer, sdl_rect1.x, sdl_rect1.y, sdl_rect1.x + gravity_projected_onto_terrain.x, sdl_rect1.y + gravity_projected_onto_terrain.y);
+        SDL_RenderDrawLine(sdl_renderer, kid_pos.x, kid_pos.y, kid_pos.x + gravity_projected_onto_terrain.x, kid_pos.y + gravity_projected_onto_terrain.y);
 
         SDL_UpdateWindowSurface(sdl_window);
 
