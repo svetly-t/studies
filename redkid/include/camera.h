@@ -1,6 +1,7 @@
 #pragma once
 
 #include "v2d.h"
+#include "terrain.h"
 
 class Camera {
  public:
@@ -34,7 +35,7 @@ class Camera {
     }
 
     // draw terrain curve across the middle of screen
-    void DrawTerrain(double (*terrain_function) (double)) {
+    void DrawTerrain(Terrain &terrain) {
         const int kSegments = 100;
         int segment = 0;
         double dx;
@@ -44,7 +45,7 @@ class Camera {
         dx = pos.x - (_window_width / 2 * _pixel_to_double);
         for (; segment < kSegments; ++segment) {
             points[segment].x = _window_width / kSegments * segment;
-            points[segment].y = terrain_function(dx) * _double_to_pixel + _window_height / 2;
+            points[segment].y = terrain.Height(dx) * _double_to_pixel + _window_height / 2;
 
             dx += _window_width / kSegments * _pixel_to_double;
         }
