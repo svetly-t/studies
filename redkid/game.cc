@@ -11,7 +11,7 @@ double Lerp(double from, double to, double factor) {
     return from + (to - from) * factor;
 }
 
-class GameState {
+class Game {
  public:
     enum State {
         GENERATE_TERRAIN,
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 
     float dt = 16.0 / 1000.0;
 
-    GameState game_state;
+    Game game;
 
     SdlState sdl_state(kWindowX, kWindowY);
 
@@ -37,26 +37,37 @@ int main(int argc, char **argv) {
 
     KeyState ks;
 
-    Terrain terrain;
+    DefaultTerrain terrain;
 
     Kid kid;
 
     kid.Init(8, terrain.Height(8));
+
+    game.state = Game::PLAY;
 
     // Event loop
     for (;!sdl_state.exit;) {
         sdl_state.GetEvents(ks);
 
         Kid::UpdateContext kid_ctx;
-        kid_ctx.dt = dt;
-        kid_ctx.gravity = kGravity;
-        kid_ctx.ks = &ks;
-        kid_ctx.terrain = &terrain;
 
-        // Move the camera so that the player is always in the center of the view window
-        // Add an offset so that, plus velocity vector, we shift in the direction player is going
-        // camera.pos.x = kid.pos.x + kid.vel.x;
-        camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
+        switch (game.state) {
+            case Game::GENERATE_TERRAIN:
+                // terrain_generator.Update(&ter_gen_ctx);
+                break;
+            case Game::PLAY:
+                kid_ctx.dt = dt;
+                kid_ctx.gravity = kGravity;
+                kid_ctx.ks = &ks;
+                kid_ctx.terrain = &terrain;
+                kid.Update(&kid_ctx);
+                // Move the camera so that the player is always in the center of the view window
+                // Add an offset so that, plus velocity vector, we shift in the direction player is going
+                camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
+                break;
+            default:
+                break;
+        }
 
         // draw
         SDL_FillRect(sdl_state.sdl_surface, NULL, SDL_MapRGB(sdl_state.sdl_surface->format, 0, 0, 0));
