@@ -3,8 +3,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
-class KeyState {
- public:
+struct KeyState {
     // held
     int x = 0;
     int y = 0;
@@ -13,6 +12,15 @@ class KeyState {
     int xp = 0;
     int yp = 0;
     int sp = 0;
+    // mouse position relative to window
+    int mx;
+    int my;
+    // mouse buttons held
+    int mlc = 0;
+    int mrc = 0;
+    // mouse buttons pressed
+    int mlcp = 0;
+    int mrcp = 0;
 };
 
 class SdlState {
@@ -25,6 +33,9 @@ class SdlState {
 
     SdlState(int window_width, int window_height) {
         SDL_Init(SDL_INIT_EVERYTHING);
+
+        IMG_Init(IMG_INIT_PNG);
+        // In theory this should be paired with an IMG_Quit() elsewhere
 
         sdl_window = SDL_CreateWindow("Newboy", 
                                       SDL_WINDOWPOS_UNDEFINED, 
@@ -55,20 +66,20 @@ class SdlState {
                 case SDL_KEYDOWN:
                     switch( sdl_event.key.keysym.sym ){
                         case SDLK_LEFT:
-                            ks.x = -1;
                             if (!ks.x) ks.xp = -1;
+                            ks.x = -1;
                             break;
                         case SDLK_RIGHT:
-                            ks.x = 1;
                             if (!ks.x) ks.xp = 1;
+                            ks.x = 1;
                             break;
                         case SDLK_UP:
-                            ks.y = -1;
                             if (!ks.y) ks.yp = -1;
+                            ks.y = -1;
                             break;
                         case SDLK_DOWN:
-                            ks.y = 1;
                             if (!ks.y) ks.yp = 1;
+                            ks.y = 1;
                             break;
                         case SDLK_SPACE:
                             ks.s = 1;
@@ -94,6 +105,37 @@ class SdlState {
                             break;
                     }
                     break;
+                case SDL_MOUSEMOTION:
+                    ks.mx = sdl_event.motion.x;
+                    ks.my = sdl_event.motion.y;
+                    break;
+                case SDL_MOUSEBUTTONDOWN:
+                    switch ( sdl_event.button.button ){
+                        case 0:
+                            if (!ks.mlc) ks.mlcp = 1;
+                            ks.mlc = 1;
+                            break;
+                        case 1:
+                            if (!ks.mrc) ks.mrcp = 1;
+                            ks.mrc = 1;
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case SDL_MOUSEBUTTONUP:
+                    switch ( sdl_event.button.button ){
+                        case 0:
+                            ks.mlc = 0;
+                            break;
+                        case 1:
+                            ks.mrc = 0;
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+
             }
         }
     }
