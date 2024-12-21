@@ -11,7 +11,7 @@ class Kid {
     void Init(double x, double y);
     struct UpdateContext {
         KeyState *ks;
-        Terrain *terrain;
+        Terrain *terrainp;
         double dt;
         double gravity;
     };

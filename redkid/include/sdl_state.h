@@ -8,10 +8,12 @@ struct KeyState {
     int x = 0;
     int y = 0;
     int s = 0;
+    int esc = 0;
     // pressed
     int xp = 0;
     int yp = 0;
     int sp = 0;
+    int escp = 0;
     // mouse position relative to window
     int mx;
     int my;
@@ -84,6 +86,10 @@ class SdlState {
                         case SDLK_SPACE:
                             ks.s = 1;
                             break;
+                        case SDLK_ESCAPE:
+                            if (!ks.esc) ks.escp = 1;
+                            ks.esc = 1;
+                            break;
                         default:
                             break;
                     }
@@ -93,13 +99,20 @@ class SdlState {
                         case SDLK_LEFT:
                         case SDLK_RIGHT:
                             ks.x = 0;
+                            ks.xp = 0;
                             break;
                         case SDLK_UP:
                         case SDLK_DOWN:
                             ks.y = 0;
+                            ks.yp = 0;
                             break;
                         case SDLK_SPACE:
                             ks.s = 0;
+                            ks.sp = 0;
+                            break;
+                        case SDLK_ESCAPE:
+                            ks.esc = 0;
+                            ks.escp = 0;
                             break;
                         default:
                             break;

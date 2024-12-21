@@ -3,7 +3,7 @@
 
 # Compiler and flags
 CXX := g++
-CXXFLAGS := -Iinclude -std=c++11
+CXXFLAGS := -Iinclude -std=c++17
 LDFLAGS := -L/usr/local/lib
 LDLIBS := -lSDL2main -lSDL2 -lSDL2_image
 WIN_LDLIBS := -lmingw32 $(LDLIBS)

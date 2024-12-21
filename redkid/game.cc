@@ -15,7 +15,9 @@ double Lerp(double from, double to, double factor) {
 class Game {
  public:
     enum State {
+        START_GENERATE_TERRAIN,
         GENERATE_TERRAIN,
+        START_SIMULATE,
         SIMULATE
     };
     State state;
@@ -60,20 +62,21 @@ int main(int argc, char **argv) {
 
     KeyState ks;
 
-    DefaultTerrain terrain;
+    Terrain *terrainp;
+
+    DefaultTerrain default_terrain;
+
+    TerrainBuilder terrain_builder;
+
+    terrainp = &default_terrain;
 
     Kid kid;
 
-    kid.Init(8, terrain.Height(8));
+    kid.Init(8, terrainp->Height(8));
 
-    game.state = Game::SIMULATE;
+    game.state = Game::START_GENERATE_TERRAIN;
 
-    // Map drawing stuff, move into the cartographer later
     V2d cursor_pos;
-
-    const size_t kMarkers = 100;
-    size_t markers_idx = 0;
-    SDL_Point markers[kMarkers];
 
     // Event loop
     for (;!sdl_state.exit;) {
@@ -81,26 +84,29 @@ int main(int argc, char **argv) {
 
         Kid::UpdateContext kid_ctx;
 
+        TerrainBuilder::UpdateContext terrain_builder_ctx;
+
         switch (game.state) {
+            case Game::START_GENERATE_TERRAIN:
+                game.state = Game::GENERATE_TERRAIN;
+                terrain_builder.Initialize(1000, 1.0);
+                terrainp = terrain_builder.GetTerrain();
+                break;
             case Game::GENERATE_TERRAIN:
-                cursor_pos.x = ks.mx;
-                cursor_pos.y = ks.my;
-                if (ks.mlcp) {
-                    if (markers_idx < kMarkers) {
-                        markers[markers_idx].x = cursor_pos.x;
-                        markers[markers_idx].y = cursor_pos.y;
-                        ++markers_idx;
-                    }
-                } else if (ks.mrcp) {
-                    if (markers_idx > 0)
-                        --markers_idx;
-                }
+                terrain_builder_ctx.ks = &ks;
+                terrain_builder_ctx.camerap = &camera;
+                terrain_builder.Update(&terrain_builder_ctx);
+                if (ks.esc)
+                    game.state = Game::START_SIMULATE;
+                break;
+            case Game::START_SIMULATE:
+                game.state = Game::SIMULATE;
                 break;
             case Game::SIMULATE:
                 kid_ctx.dt = dt;
                 kid_ctx.gravity = kGravity;
                 kid_ctx.ks = &ks;
-                kid_ctx.terrain = &terrain;
+                kid_ctx.terrainp = terrainp;
                 kid.Update(&kid_ctx);
                 // Move the camera so that the player is always in the center of the view window
                 // Add an offset so that, plus velocity vector, we shift in the direction player is going
@@ -117,11 +123,12 @@ int main(int argc, char **argv) {
 
         switch (game.state) {
             case Game::GENERATE_TERRAIN:
-                // terrain_generator.Update(&ter_gen_ctx);
+                camera.DrawTerrain(terrainp);
+                // camera.DrawCursor(cursor_pos);
                 // camera.Draw(map_line);
                 break;
             case Game::SIMULATE:
-                camera.DrawTerrain(terrain);
+                camera.DrawTerrain(terrainp);
                 camera.DrawBox(kid.pos);
                 break;
             default:

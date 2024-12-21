@@ -1,6 +1,9 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "v2d.h"
+#include "image.h"
 #include "terrain.h"
 
 class Camera {
@@ -9,48 +12,24 @@ class Camera {
     const double kDoubleToPixel = 10; // 1 double == 10 pixels; means kid is 1.6 meters
     V2d pos;
 
-    Camera(SDL_Renderer *sdl_renderer, int window_height, int window_width) {
-        _sdl_renderer = sdl_renderer;
-        _window_height = window_height;
-        _window_width = window_width;
-        _pixel_to_double = kPixelToDouble;
-        _double_to_pixel = kDoubleToPixel;
-    }
+    Camera(SDL_Renderer *sdl_renderer, int window_height, int window_width);
 
-    V2d ToScreenSpace(V2d at) {
-        V2d result;
-        result.x = (at.x - pos.x) * _double_to_pixel + _window_width / 2;
-        result.y = at.y * _double_to_pixel + _window_height / 2;
-        return result;  
-    }
+    void SetZoom(double pixel_to_double);
 
-    void DrawBox(V2d at) {
-        SDL_Rect rect;
-        rect.x = (at.x - pos.x) * _double_to_pixel + _window_width / 2;
-        rect.y = at.y * _double_to_pixel + _window_height / 2;
-        rect.w = 1.6 * _double_to_pixel;
-        rect.h = 1.6 * _double_to_pixel;
+    V2d ToScreenSpace(V2d at);
 
-        SDL_RenderDrawRect(_sdl_renderer, &rect);
-    }
+    V2d ToWorldSpace(V2d at);
+
+    void DrawBox(V2d at);
+
+    void DrawCursor(V2d at);
 
     // draw terrain curve across the middle of screen
-    void DrawTerrain(Terrain &terrain) {
-        const int kSegments = 100;
-        int segment = 0;
-        double dx;
-        SDL_Point points[kSegments];
-        
-        // draw only the part of the curve that's in the window.
-        dx = pos.x - (_window_width / 2 * _pixel_to_double);
-        for (; segment < kSegments; ++segment) {
-            points[segment].x = _window_width / kSegments * segment;
-            points[segment].y = terrain.Height(dx) * _double_to_pixel + _window_height / 2;
+    void DrawTerrain(Terrain *terrain);
 
-            dx += _window_width / kSegments * _pixel_to_double;
-        }
-        SDL_RenderDrawLines(_sdl_renderer, points, kSegments);
-    }
+    void DrawAll(std::unordered_map<uint64_t, Line> &lines);
+
+    void Draw(Line line);
 
  private:
     SDL_Renderer *_sdl_renderer;
