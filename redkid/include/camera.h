@@ -2,6 +2,9 @@
 
 #include <unordered_map>
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+
 #include "v2d.h"
 #include "image.h"
 #include "terrain.h"

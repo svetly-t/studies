@@ -6,6 +6,7 @@
 #include "include/camera.h"
 #include "include/v2d.h"
 #include "include/terrain.h"
+#include "include/terrain_builder.h"
 #include "include/kid.h"
 
 double Lerp(double from, double to, double factor) {
@@ -88,18 +89,21 @@ int main(int argc, char **argv) {
 
         switch (game.state) {
             case Game::START_GENERATE_TERRAIN:
-                game.state = Game::GENERATE_TERRAIN;
                 terrain_builder.Initialize(1000, 1.0);
                 terrainp = terrain_builder.GetTerrain();
+                camera.SetZoom(1.0);
+                game.state = Game::GENERATE_TERRAIN;
                 break;
             case Game::GENERATE_TERRAIN:
                 terrain_builder_ctx.ks = &ks;
                 terrain_builder_ctx.camerap = &camera;
                 terrain_builder.Update(&terrain_builder_ctx);
+                camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
                 if (ks.esc)
                     game.state = Game::START_SIMULATE;
                 break;
             case Game::START_SIMULATE:
+                camera.SetZoom(0.1);
                 game.state = Game::SIMULATE;
                 break;
             case Game::SIMULATE:
@@ -123,8 +127,10 @@ int main(int argc, char **argv) {
 
         switch (game.state) {
             case Game::GENERATE_TERRAIN:
+                cursor_pos.x = ks.mx;
+                cursor_pos.y = ks.my;
                 camera.DrawTerrain(terrainp);
-                // camera.DrawCursor(cursor_pos);
+                camera.DrawCursor(cursor_pos);
                 // camera.Draw(map_line);
                 break;
             case Game::SIMULATE:

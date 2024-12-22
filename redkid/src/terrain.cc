@@ -33,7 +33,7 @@ void BuiltTerrain::Initialize(size_t number_of_points, double double_between_poi
 }
 
 size_t BuiltTerrain::getIndex(double x) const {
-    double index = _number_of_points * _double_between_points + x;
+    double index = (_number_of_points * _double_between_points) / 2.0 + x;
     // Lock index to range of vector
     if (index < 0.0)
         return 0;
@@ -60,9 +60,7 @@ double BuiltTerrain::Slope(double x) const {
     idx_before = getIndex(x - _double_between_points);
     idx_after = getIndex(x + _double_between_points);
 
-    result = (_points[idx_after] + _points[idx_at]) / _double_between_points;
-    result += (_points[idx_at] + _points[idx_before]) / _double_between_points;
-    result /= 2.0;
+    result = (_points[idx_after] - _points[idx_before]) / (2.0 * _double_between_points);
 
     return result;
 }
@@ -80,24 +78,4 @@ V2d BuiltTerrain::Normal(double x) const {
     result.x = -result.y;
     result.y = temp;
     return result;
-}
-
-void TerrainBuilder::Initialize(size_t number_of_points, double double_between_points) {
-    _terrain.Initialize(number_of_points, double_between_points);
-}
-
-void TerrainBuilder::Update(TerrainBuilder::UpdateContext *ctx) {
-    V2d cursor_pos;
-    V2d world_pos;
-    cursor_pos.x = ctx->ks->mx;
-    cursor_pos.y = ctx->ks->my;
-
-    if (ctx->ks->mlc) {
-        world_pos = ctx->camerap->ToWorldSpace(cursor_pos);
-        _terrain.SetHeight(world_pos.x, world_pos.y);
-    }
-}
-
-BuiltTerrain *TerrainBuilder::GetTerrain() {
-    return &_terrain;
 }

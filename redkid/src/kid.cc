@@ -52,10 +52,10 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             vel.x += acc.x * dt;
             vel.y += acc.y * dt;
             // directly kick velocity on left, right button press
-            if (ctx->ks->xp) {
-                vel.x += (double)ctx->ks->x * 16.0;
-                vel.y += (double)ctx->ks->x * 16.0 * ctx->terrainp->Slope(pos.x);
-            }
+            // if (ctx->ks->xp) {
+            //     vel.x += (double)ctx->ks->x * 16.0;
+            //     vel.y += (double)ctx->ks->x * 16.0 * ctx->terrainp->Slope(pos.x);
+            // }
             // pos += vel * dt
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;

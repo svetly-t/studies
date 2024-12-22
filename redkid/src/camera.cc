@@ -1,7 +1,9 @@
 #include <unordered_map>
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+
 #include "v2d.h"
-#include "image.h"
 #include "terrain.h"
 #include "camera.h"
 
@@ -27,8 +29,8 @@ V2d Camera::ToScreenSpace(V2d at) {
 
 V2d Camera::ToWorldSpace(V2d at) {
     V2d result;
-    at.x +=  _window_width / 2;
-    at.y +=  _window_height / 2;
+    at.x -=  _window_width / 2;
+    at.y -=  _window_height / 2;
     result.x = at.x * _pixel_to_double + pos.x;
     result.y = at.y * _pixel_to_double + pos.y;
     return result;  

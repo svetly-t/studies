@@ -124,11 +124,11 @@ class SdlState {
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     switch ( sdl_event.button.button ){
-                        case 0:
+                        case 1:
                             if (!ks.mlc) ks.mlcp = 1;
                             ks.mlc = 1;
                             break;
-                        case 1:
+                        case 3:
                             if (!ks.mrc) ks.mrcp = 1;
                             ks.mrc = 1;
                             break;
@@ -138,11 +138,13 @@ class SdlState {
                     break;
                 case SDL_MOUSEBUTTONUP:
                     switch ( sdl_event.button.button ){
-                        case 0:
-                            ks.mlc = 0;
-                            break;
                         case 1:
+                            ks.mlc = 0;
+                            ks.mlcp = 0;
+                            break;
+                        case 3:
                             ks.mrc = 0;
+                            ks.mrcp = 0;
                             break;
                         default:
                             break;
