@@ -6,16 +6,18 @@
 
 class Terrain {
  public:
-    virtual double Height(double pos) const = 0;
-    virtual double Slope(double pos) const = 0;
-    virtual V2d Tangent(double pos) const = 0;
-    virtual V2d Normal(double pos) const = 0;
+    virtual double Height(double x) const = 0;
+    virtual double RawHeight(double &x) const = 0;
+    virtual double Slope(double x) const = 0;
+    virtual V2d Tangent(double x) const = 0;
+    virtual V2d Normal(double x) const = 0;
     ~Terrain() {}
 };
 
 class DefaultTerrain : public Terrain {
  public:
     double Height(double x) const override;
+    double RawHeight(double &x) const override;
     double Slope(double x) const override;
     V2d Tangent(double x) const override;
     V2d Normal(double x) const override;
@@ -24,13 +26,14 @@ class DefaultTerrain : public Terrain {
 class BuiltTerrain : public Terrain {
  public:
     double Height(double x) const override;
+    double RawHeight(double &x) const override;
     double Slope(double x) const override;
     V2d Tangent(double x) const override;
     V2d Normal(double x) const override;
     void Initialize(size_t number_of_points, double double_between_points);
     void SetHeight(double x, double y);
  private:
-    inline size_t getIndex(double x) const;
+    inline void getIndices(double x, size_t &floor, size_t &ceil) const;
     size_t _number_of_points;
     double _double_between_points;
     std::vector<double> _points;

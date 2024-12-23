@@ -2,7 +2,7 @@
 #include "terrain.h"
 #include "sdl_state.h"
 
-void Kid::Init(double x, double y) {
+void Kid::Initialize(double x, double y) {
     pos.x = x;
     pos.y = y;
 }

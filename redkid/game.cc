@@ -8,10 +8,7 @@
 #include "include/terrain.h"
 #include "include/terrain_builder.h"
 #include "include/kid.h"
-
-double Lerp(double from, double to, double factor) {
-    return from + (to - from) * factor;
-}
+#include "include/lerp.h"
 
 class Game {
  public:
@@ -63,17 +60,11 @@ int main(int argc, char **argv) {
 
     KeyState ks;
 
-    Terrain *terrainp;
-
-    DefaultTerrain default_terrain;
+    Terrain *terrainp = nullptr;
 
     TerrainBuilder terrain_builder;
 
-    terrainp = &default_terrain;
-
     Kid kid;
-
-    kid.Init(8, terrainp->Height(8));
 
     game.state = Game::START_GENERATE_TERRAIN;
 
@@ -104,6 +95,7 @@ int main(int argc, char **argv) {
                 break;
             case Game::START_SIMULATE:
                 camera.SetZoom(0.1);
+                kid.Initialize(8, terrainp->Height(8));
                 game.state = Game::SIMULATE;
                 break;
             case Game::SIMULATE:

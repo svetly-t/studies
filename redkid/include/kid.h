@@ -8,7 +8,7 @@ class Kid {
  public:
     Kid() { state = State::SLIDING; }
 
-    void Init(double x, double y);
+    void Initialize(double x, double y);
     struct UpdateContext {
         KeyState *ks;
         Terrain *terrainp;

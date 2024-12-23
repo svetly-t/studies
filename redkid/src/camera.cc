@@ -56,6 +56,7 @@ void Camera::DrawTerrain(Terrain *terrain) {
     const int kSegments = 100;
     int segment = 0;
     double dx;
+    V2d point;
     SDL_Point points[kSegments];
 
     if (terrain == nullptr)
@@ -64,8 +65,11 @@ void Camera::DrawTerrain(Terrain *terrain) {
     // draw only the part of the curve that's in the window.
     dx = pos.x - (_window_width / 2 * _pixel_to_double);
     for (; segment < kSegments; ++segment) {
-        points[segment].x = _window_width / kSegments * segment;
-        points[segment].y = terrain->Height(dx) * _double_to_pixel + _window_height / 2;
+        point.x = dx;
+        point.y = terrain->RawHeight(point.x);
+        point = ToScreenSpace(point);
+        points[segment].y = point.y;
+        points[segment].x = point.x;
 
         dx += _window_width / kSegments * _pixel_to_double;
     }
