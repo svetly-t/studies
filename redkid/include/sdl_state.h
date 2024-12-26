@@ -57,6 +57,15 @@ class SdlState {
         sdl_renderer = SDL_CreateSoftwareRenderer(sdl_surface);
     }
 
+    void ClearPress(KeyState &ks) {
+        ks.xp = 0;
+        ks.yp = 0;
+        ks.sp = 0;
+        ks.escp = 0;
+        ks.mlcp = 0;
+        ks.mrcp = 0;
+    }
+
     void GetEvents(KeyState &ks) {
         SDL_Event sdl_event;
 

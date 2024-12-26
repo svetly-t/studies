@@ -13,9 +13,11 @@
 class Game {
  public:
     enum State {
-        START_GENERATE_TERRAIN,
+        INITIALIZE_GENERATE_TERRAIN,
+        SWITCH_TO_GENERATE_TERRAIN,
         GENERATE_TERRAIN,
-        START_SIMULATE,
+        INITIALIZE_SIMULATE,
+        SWITCH_TO_SIMULATE,
         SIMULATE
     };
     State state;
@@ -66,7 +68,7 @@ int main(int argc, char **argv) {
 
     Kid kid;
 
-    game.state = Game::START_GENERATE_TERRAIN;
+    game.state = Game::INITIALIZE_GENERATE_TERRAIN;
 
     V2d cursor_pos;
 
@@ -79,9 +81,12 @@ int main(int argc, char **argv) {
         TerrainBuilder::UpdateContext terrain_builder_ctx;
 
         switch (game.state) {
-            case Game::START_GENERATE_TERRAIN:
+            case Game::INITIALIZE_GENERATE_TERRAIN:
                 terrain_builder.Initialize(1000, 1.0);
                 terrainp = terrain_builder.GetTerrain();
+                game.state = Game::SWITCH_TO_GENERATE_TERRAIN;
+                break;
+            case Game::SWITCH_TO_GENERATE_TERRAIN:
                 camera.SetZoom(1.0);
                 game.state = Game::GENERATE_TERRAIN;
                 break;
@@ -90,12 +95,15 @@ int main(int argc, char **argv) {
                 terrain_builder_ctx.camerap = &camera;
                 terrain_builder.Update(&terrain_builder_ctx);
                 camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
-                if (ks.esc)
-                    game.state = Game::START_SIMULATE;
+                if (ks.escp)
+                    game.state = Game::INITIALIZE_SIMULATE;
                 break;
-            case Game::START_SIMULATE:
-                camera.SetZoom(0.1);
+            case Game::INITIALIZE_SIMULATE:
                 kid.Initialize(8, terrainp->Height(8));
+                game.state = Game::SWITCH_TO_SIMULATE;
+                break;
+            case Game::SWITCH_TO_SIMULATE:
+                camera.SetZoom(0.1);
                 game.state = Game::SIMULATE;
                 break;
             case Game::SIMULATE:
@@ -107,10 +115,14 @@ int main(int argc, char **argv) {
                 // Move the camera so that the player is always in the center of the view window
                 // Add an offset so that, plus velocity vector, we shift in the direction player is going
                 camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
+                if (ks.escp)
+                   game.state = Game::SWITCH_TO_GENERATE_TERRAIN;
                 break;
             default:
                 break;
         }
+
+        sdl_state.ClearPress(ks);
 
         // draw
         SDL_FillRect(sdl_state.sdl_surface, NULL, SDL_MapRGB(sdl_state.sdl_surface->format, 0, 0, 0));
@@ -123,10 +135,18 @@ int main(int argc, char **argv) {
                 cursor_pos.y = ks.my;
                 camera.DrawTerrain(terrainp);
                 camera.DrawCursor(cursor_pos);
-                // camera.Draw(map_line);
                 break;
             case Game::SIMULATE:
                 camera.DrawTerrain(terrainp);
+                // Set box color to reflect kid state
+                switch (kid.state) {
+                    case Kid::FALLING:
+                        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
+                        break;
+                    case Kid::SLIDING:
+                        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 100, 255, 255);
+                        break;
+                }
                 camera.DrawBox(kid.pos);
                 break;
             default:
@@ -135,22 +155,15 @@ int main(int argc, char **argv) {
 
 
         V2d debug_kid_pos = camera.ToScreenSpace(kid.pos);
+        V2d debug_normal = terrainp->Normal(kid.pos.x);
 
         // Draw debug velocity ray
         SDL_RenderDrawLine(sdl_state.sdl_renderer, debug_kid_pos.x, debug_kid_pos.y, debug_kid_pos.x + kid.vel.x, debug_kid_pos.y + kid.vel.y);
 
-        // SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
+        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
         // Draw debug normal ray
-        // SDL_RenderDrawLine(sdl_state.sdl_renderer, kid_pos.x, kid_pos.y, kid_pos.x + normal.x * 10, kid_pos.y + normal.y * 10);
+        SDL_RenderDrawLine(sdl_state.sdl_renderer, debug_kid_pos.x, debug_kid_pos.y, debug_kid_pos.x + debug_normal.x * 10, debug_kid_pos.y + debug_normal.y * 10);
         
-        // SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 0, 125, 255, 255);
-        // Draw debug friction ray
-        // SDL_RenderDrawLine(sdl_state.sdl_renderer, kid_pos.x, kid_pos.y, kid_pos.x + friction_force.x, kid_pos.y + friction_force.y);
-
-        // SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 0, 255, 125, 255);
-        // Draw debug force of gravity ray
-        // SDL_RenderDrawLine(sdl_state.sdl_renderer, kid_pos.x, kid_pos.y, kid_pos.x + gravity_projected_onto_terrain.x, kid_pos.y + gravity_projected_onto_terrain.y);
-
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
 
         // sleep

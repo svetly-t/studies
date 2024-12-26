@@ -28,7 +28,7 @@ V2d DefaultTerrain::Normal(double x) const {
     double temp = result.x;
     result.x = -result.y;
     result.y = temp;
-    return result;
+    return -result;
 }
 
 void BuiltTerrain::Initialize(size_t number_of_points, double double_between_points) {
@@ -52,7 +52,7 @@ void BuiltTerrain::getIndices(double x, size_t &floor, size_t &ceil) const {
         return;
     }
     floor = (size_t)(low_idx);
-    ceil = (size_t)(low_idx + 1);
+    ceil = floor + 1;
 }
 
 void BuiltTerrain::SetHeight(double x, double y) {
@@ -64,13 +64,13 @@ void BuiltTerrain::SetHeight(double x, double y) {
 double BuiltTerrain::Height(double x) const {
     size_t idx, nidx;
     getIndices(x, idx, nidx);
-    return Lerp(_points[idx], _points[nidx], std::fmod(x, _double_between_points));
+    return Lerp(_points[idx], _points[nidx], PosFmod(x, _double_between_points));
 }
 
 double BuiltTerrain::RawHeight(double &x) const {
     size_t idx, nidx;
     getIndices(x, idx, nidx);
-    x = x - std::fmod(x, _double_between_points);
+    x = x - PosFmod(x, _double_between_points);
     return _points[idx];
 }
 
@@ -92,5 +92,5 @@ V2d BuiltTerrain::Normal(double x) const {
     double temp = result.x;
     result.x = -result.y;
     result.y = temp;
-    return result;
+    return -result;
 }
