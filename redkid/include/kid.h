@@ -20,7 +20,7 @@ class Kid {
     enum State {
         WALKING,
         SLIDING,
-        STOP_SLIDING,
+        STUCK,
         FALLING,
         SKIDDING,
         IDLE,

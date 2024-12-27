@@ -38,6 +38,8 @@ V2d Camera::ToWorldSpace(V2d at) {
 
 void Camera::DrawBox(V2d at) {
     SDL_Rect rect;
+    at.x -= 0.8;
+    at.y -= 1.6;
     rect.x = (at.x - pos.x) * _double_to_pixel + _window_width / 2;
     rect.y = at.y * _double_to_pixel + _window_height / 2;
     rect.w = 1.6 * _double_to_pixel;

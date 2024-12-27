@@ -7,20 +7,20 @@ void Kid::Initialize(double x, double y) {
     pos.y = y;
 }
 
+V2d calculateNormal(V2d pos, Kid::UpdateContext *ctx) {
+    V2d normal = ctx->terrainp->Normal(pos.x);
+    return normal;
+}
+
 void Kid::Update(Kid::UpdateContext *ctx) {
     double coeff_of_friction = 0.1;
     double k_gravity = ctx->gravity;
     double dt = ctx->dt;
-    double terrain_height = ctx->terrainp->Height(pos.x);
-    
+    double new_height;
+
     V2d tangent = ctx->terrainp->Tangent(pos.x);
-    V2d normal = ctx->terrainp->Normal(pos.x);
-    // if (pos.y >= ctx->terrainp->Height(pos.x + 1.6)) {
-    //     tangent += ctx->terrainp->Tangent(pos.x + 1.6);
-    //     tangent /= 2.0;
-    //     normal += ctx->terrainp->Normal(pos.x + 1.6);
-    //     normal /= 2.0;
-    // }
+    V2d normal = calculateNormal(pos, ctx);
+    V2d new_normal;
     V2d gravity(0.0, k_gravity);
     V2d gravity_projected_onto_terrain =  tangent * (gravity * tangent);
     V2d gravity_projected_onto_normal =  normal * (gravity * normal);
@@ -39,10 +39,11 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // pos += vel * dt
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
+            new_height = ctx->terrainp->Height(pos.x);
             // constrain to keep the kid on the line
-            if (pos.y >= ctx->terrainp->Height(pos.x)) {
-                pos.y = ctx->terrainp->Height(pos.x);
-                normal = ctx->terrainp->Normal(pos.x);
+            if (pos.y >= new_height) {
+                pos.y = new_height;
+                normal = calculateNormal(pos, ctx);
                 vel -= normal * (vel * normal);
                 state = Kid::SLIDING;
                 break;
@@ -65,29 +66,36 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // pos += vel * dt
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
+            new_height = ctx->terrainp->Height(pos.x);
             // if significantly above the ground we're falling
-            if (pos.y < ctx->terrainp->Height(pos.x)) {
+            if (pos.y < new_height) {
                 state = Kid::FALLING;
                 break;
             }
             // constrain to keep the kid on the line
-            if (pos.y >= ctx->terrainp->Height(pos.x)) {
-                pos.y = ctx->terrainp->Height(pos.x);
-                normal = ctx->terrainp->Normal(pos.x);
+            if (pos.y >= new_height) {
+                pos.y = new_height;
+                new_normal = calculateNormal(pos, ctx);
                 // kill the portion of velocity that is in the direction of the terrain
-                vel -= normal * (vel * normal);
+                vel -= new_normal * (vel * new_normal);
+                // getting stuck in divots. The 0.05 is arbitrary
+                if (new_normal.x * normal.x < -0.05) {
+                    state = Kid::STUCK;
+                    vel = {0, 0};
+                    break;
+                }
             }
             // Stop sliding if spacebar not pressed
             if (vel.Magnitude() < 0.1 && ctx->ks->s == 0) {
                 state = Kid::IDLE;
-                vel.x = 0;
-                vel.y = 0;
+                vel = {0, 0};
                 break;
             }
             break;
+        case Kid::STUCK:
         case Kid::IDLE:
             pos.y = ctx->terrainp->Height(pos.x);
-            // Go back to sliding if spacebar not pressed
+            // Go back to sliding if spacebar pressed
             if (ctx->ks->s == 1) {
                 state = Kid::SLIDING;
                 break;
