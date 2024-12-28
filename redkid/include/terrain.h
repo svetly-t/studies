@@ -32,6 +32,7 @@ class BuiltTerrain : public Terrain {
     V2d Normal(double x) const override;
     void Initialize(size_t number_of_points, double double_between_points);
     void SetHeight(double x, double y);
+    double GetScale();
  private:
     inline void getIndices(double x, size_t &floor, size_t &ceil) const;
     size_t _number_of_points;

@@ -18,6 +18,7 @@ class TerrainBuilder {
     BuiltTerrain *GetTerrain();
  private:
     BuiltTerrain _terrain;
+    V2d _last_cursor_pos;
 };
 
 class Cartographer {

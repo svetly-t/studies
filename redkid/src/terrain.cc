@@ -37,6 +37,10 @@ void BuiltTerrain::Initialize(size_t number_of_points, double double_between_poi
     _points.assign(number_of_points, 0.0);
 }
 
+double BuiltTerrain::GetScale() {
+    return _double_between_points;
+}
+
 void BuiltTerrain::getIndices(double x, size_t &floor, size_t &ceil) const {
     double high_idx;
     double low_idx = (_number_of_points * _double_between_points) / 2.0 + x;

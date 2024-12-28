@@ -92,12 +92,30 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 break;
             }
             break;
+        case Kid::WALKING:
+            acc = {0, 0};
+            // vel += a * dt
+            vel = tangent * ((V2d(0, -1) * normal) * 4.0 + 1.0) * ctx->ks->x;
+            pos += vel * dt;
+            // constrain to keep the kid on the line
+            pos.y = ctx->terrainp->Height(pos.x);
+            // Stop walking if L/R not pressed
+            if (ctx->ks->x == 0) {
+                state = Kid::IDLE;
+                vel = {0, 0};
+                break;
+            }
+            break;
         case Kid::STUCK:
         case Kid::IDLE:
             pos.y = ctx->terrainp->Height(pos.x);
             // Go back to sliding if spacebar pressed
             if (ctx->ks->s == 1) {
                 state = Kid::SLIDING;
+                break;
+            }
+            if (ctx->ks->x) {
+                state = Kid::WALKING;
                 break;
             }
             break;
