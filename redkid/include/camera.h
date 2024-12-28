@@ -19,6 +19,8 @@ class Camera {
 
     void SetZoom(double pixel_to_double);
 
+    double GetZoom();
+
     V2d ToScreenSpace(V2d at);
 
     V2d ToWorldSpace(V2d at);

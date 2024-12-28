@@ -20,6 +20,10 @@ void Camera::SetZoom(double pixel_to_double) {
     _double_to_pixel = 1.0 / pixel_to_double;
 }
 
+double Camera::GetZoom() {
+    return _pixel_to_double;
+}
+
 V2d Camera::ToScreenSpace(V2d at) {
     V2d result;
     result.x = (at.x - pos.x) * _double_to_pixel + _window_width / 2;
