@@ -8,11 +8,13 @@ struct KeyState {
     int x = 0;
     int y = 0;
     int s = 0;
+    int e = 0;
     int esc = 0;
     // pressed
     int xp = 0;
     int yp = 0;
     int sp = 0;
+    int ep = 0;
     int escp = 0;
     // mouse position relative to window
     int mx;
@@ -60,6 +62,7 @@ class SdlState {
     void ClearPress(KeyState &ks) {
         ks.xp = 0;
         ks.yp = 0;
+        ks.ep = 0;
         ks.sp = 0;
         ks.escp = 0;
         ks.mlcp = 0;
@@ -92,6 +95,11 @@ class SdlState {
                             if (!ks.y) ks.yp = 1;
                             ks.y = 1;
                             break;
+                        case SDLK_e:
+                        case SDLK_KP_E:
+                            if (!ks.e) ks.ep = 1;
+                            ks.e = 1;
+                            break;
                         case SDLK_SPACE:
                             ks.s = 1;
                             break;
@@ -118,6 +126,11 @@ class SdlState {
                         case SDLK_SPACE:
                             ks.s = 0;
                             ks.sp = 0;
+                            break;
+                        case SDLK_e:
+                        case SDLK_KP_E:
+                            ks.e = 0;
+                            ks.ep = 0;
                             break;
                         case SDLK_ESCAPE:
                             ks.esc = 0;

@@ -73,6 +73,8 @@ class V2d {
         return sqrt(x * x + y * y);
     }
     V2d Normalized() {
+        if (!this->Magnitude())
+            return {0.0, 0.0}; 
         return *this / this->Magnitude();
     }
     double x;

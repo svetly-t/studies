@@ -74,6 +74,8 @@ int main(int argc, char **argv) {
 
     V2d world_dimensions;
 
+    V2d kid_vel_normalized;
+
     // Event loop
     for (;!sdl_state.exit;) {
         sdl_state.GetEvents(ks);
@@ -117,11 +119,17 @@ int main(int argc, char **argv) {
                 kid.Update(&kid_ctx);
                 // Move the camera so that the player is always in the center of the view window
                 // Add an offset so that, plus velocity vector, we shift in the direction player is going
-                camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid.vel.x, dt * 2.0);
+                kid_vel_normalized = kid.vel.Normalized();
+                camera.pos.x = Lerp(camera.pos.x, kid.pos.x + kid_vel_normalized.x, dt * 4.0);
+                camera.pos.y = Lerp(camera.pos.y, kid.pos.y + kid_vel_normalized.y, dt * 4.0);
                 // Pull back the camera back based on kid height
-                camera.SetZoom(LerpBetween(0.1, 1.0, std::abs(kid.pos.y), std::abs(world_dimensions.y)));
+                // camera.SetZoom(LerpBetween(0.1, 1.0, std::abs(kid.pos.y), std::abs(world_dimensions.y)));
                 if (ks.escp)
                    game.state = Game::SWITCH_TO_GENERATE_TERRAIN;
+                if (ks.e)
+                    camera.SetZoom(Lerp(camera.GetZoom(), 1.0, dt));
+                else
+                    camera.SetZoom(Lerp(camera.GetZoom(), 0.1, dt * 4.0));
                 break;
             default:
                 break;

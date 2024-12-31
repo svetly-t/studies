@@ -45,7 +45,7 @@ void Camera::DrawBox(V2d at) {
     at.x -= 0.8;
     at.y -= 1.6;
     rect.x = (at.x - pos.x) * _double_to_pixel + _window_width / 2;
-    rect.y = at.y * _double_to_pixel + _window_height / 2;
+    rect.y = (at.y - pos.y) * _double_to_pixel + _window_height / 2;
     rect.w = 1.6 * _double_to_pixel;
     rect.h = 1.6 * _double_to_pixel;
 
@@ -72,7 +72,7 @@ void Camera::DrawTerrain(Terrain *terrain) {
     dx = pos.x - (_window_width / 2 * _pixel_to_double);
     for (; segment < kSegments; ++segment) {
         point.x = dx;
-        point.y = terrain->RawHeight(point.x);
+        point.y = terrain->RawHeight(point.x) - pos.y;
         point = ToScreenSpace(point);
         points[segment].y = point.y;
         points[segment].x = point.x;
