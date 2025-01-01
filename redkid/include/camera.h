@@ -8,6 +8,7 @@
 #include "v2d.h"
 #include "image.h"
 #include "terrain.h"
+#include "puppet.h"
 
 class Camera {
  public:
@@ -26,6 +27,10 @@ class Camera {
     V2d ToWorldSpace(V2d at);
 
     void DrawBox(V2d at);
+
+    void DrawLeg(V2d at, V2d vel, Leg &leg);
+
+    void DrawLine(V2d start, V2d end);
 
     void DrawCursor(V2d at);
 

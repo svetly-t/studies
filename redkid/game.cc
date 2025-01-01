@@ -68,6 +68,10 @@ int main(int argc, char **argv) {
 
     Kid kid;
 
+    Leg right_leg(Leg::STANDING);
+
+    Leg left_leg(Leg::SWINGING);
+
     game.state = Game::INITIALIZE_GENERATE_TERRAIN;
 
     V2d cursor_pos;
@@ -81,6 +85,8 @@ int main(int argc, char **argv) {
         sdl_state.GetEvents(ks);
 
         Kid::UpdateContext kid_ctx;
+
+        Leg::UpdateContext leg_ctx;
 
         TerrainBuilder::UpdateContext terrain_builder_ctx;
 
@@ -117,6 +123,10 @@ int main(int argc, char **argv) {
                 kid_ctx.ks = &ks;
                 kid_ctx.terrainp = terrainp;
                 kid.Update(&kid_ctx);
+                // Update leg animation
+                leg_ctx.dt = dt;
+                right_leg.Update(&leg_ctx);
+                left_leg.Update(&leg_ctx);
                 // Move the camera so that the player is always in the center of the view window
                 // Add an offset so that, plus velocity vector, we shift in the direction player is going
                 kid_vel_normalized = kid.vel.Normalized();
@@ -124,12 +134,14 @@ int main(int argc, char **argv) {
                 camera.pos.y = Lerp(camera.pos.y, kid.pos.y + kid_vel_normalized.y, dt * 4.0);
                 // Pull back the camera back based on kid height
                 // camera.SetZoom(LerpBetween(0.1, 1.0, std::abs(kid.pos.y), std::abs(world_dimensions.y)));
-                if (ks.escp)
-                   game.state = Game::SWITCH_TO_GENERATE_TERRAIN;
+                // Pull back the camera if E is held
                 if (ks.e)
                     camera.SetZoom(Lerp(camera.GetZoom(), 1.0, dt));
                 else
                     camera.SetZoom(Lerp(camera.GetZoom(), 0.1, dt * 4.0));
+                // Switch to generate terrain on ESC pressed
+                if (ks.escp)
+                   game.state = Game::SWITCH_TO_GENERATE_TERRAIN;
                 break;
             default:
                 break;
@@ -161,6 +173,8 @@ int main(int argc, char **argv) {
                         break;
                 }
                 camera.DrawBox(kid.pos);
+                camera.DrawLeg(kid.pos + V2d(0.2, 0), kid.vel, right_leg);
+                camera.DrawLeg(kid.pos - V2d(0.2, 0), kid.vel, left_leg);
                 break;
             default:
                 break;
