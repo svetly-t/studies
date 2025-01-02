@@ -13,7 +13,9 @@ SRC_DIR := src
 OBJ_DIR := obj
 INCLUDE_DIR := include
 SRCS := game.cc $(wildcard $(SRC_DIR)/*.cc)
+SRCS_TEST := test.cc $(SRC_DIR)/utilities.cc
 OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
+OBJS_TEST := $(SRCS_TEST:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
 TARGET := kid
 
 # Default target
@@ -21,6 +23,9 @@ all: $(TARGET)
 
 # Create the target
 $(TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+test: $(OBJS_TEST)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 # Compile source files into object files

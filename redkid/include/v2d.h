@@ -15,6 +15,9 @@ class V2d {
     double operator*(const V2d &other) {
         return x * other.x + y * other.y;
     }
+    double operator^(const V2d &other) {
+        return x * other.y + y * other.x;
+    }
     V2d& operator+=(const V2d& o) {
         x += o.x;
         y += o.y;

@@ -4,6 +4,7 @@
 #include <SDL2/SDL_image.h>
 
 #include "v2d.h"
+#include "utilities.h"
 #include "terrain.h"
 #include "camera.h"
 
@@ -52,10 +53,6 @@ void Camera::DrawBox(V2d at) {
     SDL_RenderDrawRect(_sdl_renderer, &rect);
 }
 
-double degToRad(double degree) {
-    return degree / 180.0 * 3.14159;
-}
-
 void Camera::DrawLeg(V2d at, V2d vel, Leg &leg) {
     V2d upper_leg_end;
     V2d lower_leg_end;
@@ -66,8 +63,8 @@ void Camera::DrawLeg(V2d at, V2d vel, Leg &leg) {
 
     at = ToScreenSpace(at);
 
-    upper_leg_end = at + V2d(-std::cos(radian_1), std::sin(radian_1)) * 8.0;
-    lower_leg_end = upper_leg_end + V2d(-std::cos(radian_2), std::sin(radian_2)) * 4.0;
+    upper_leg_end = at + V2d(-std::cos(radian_1), std::sin(radian_1)) * 16.0;
+    lower_leg_end = upper_leg_end + V2d(-std::cos(radian_2), std::sin(radian_2)) * 16.0;
 
     DrawLine(at, upper_leg_end);
     DrawLine(upper_leg_end, lower_leg_end);

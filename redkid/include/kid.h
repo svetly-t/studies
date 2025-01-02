@@ -17,12 +17,24 @@ class Kid {
     };
     void Update(UpdateContext *ctx);
 
+    struct FlyingContext {
+        V2d bearing;
+        double min_cl;
+        double max_cl;
+        double max_aoa;
+        double max_aoa_cosine;
+        double stall_angle;
+        double stall_angle_cosine;
+    };
+    FlyingContext flying_ctx;
+
     enum State {
         WALKING,
         SLIDING,
         STUCK,
+        FLYING,
         FALLING,
-        SKIDDING,
+        STALLING,
         IDLE,
     };
     State state;

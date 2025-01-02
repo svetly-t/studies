@@ -68,9 +68,9 @@ int main(int argc, char **argv) {
 
     Kid kid;
 
-    Leg right_leg(Leg::STANDING);
+    // Leg right_leg(Leg::STANDING);
 
-    Leg left_leg(Leg::SWINGING);
+    // Leg left_leg(Leg::SWINGING);
 
     game.state = Game::INITIALIZE_GENERATE_TERRAIN;
 
@@ -124,9 +124,9 @@ int main(int argc, char **argv) {
                 kid_ctx.terrainp = terrainp;
                 kid.Update(&kid_ctx);
                 // Update leg animation
-                leg_ctx.dt = dt;
-                right_leg.Update(&leg_ctx);
-                left_leg.Update(&leg_ctx);
+                // leg_ctx.dt = dt;
+                // right_leg.Update(&leg_ctx);
+                // left_leg.Update(&leg_ctx);
                 // Move the camera so that the player is always in the center of the view window
                 // Add an offset so that, plus velocity vector, we shift in the direction player is going
                 kid_vel_normalized = kid.vel.Normalized();
@@ -173,8 +173,8 @@ int main(int argc, char **argv) {
                         break;
                 }
                 camera.DrawBox(kid.pos);
-                camera.DrawLeg(kid.pos + V2d(0.2, 0), kid.vel, right_leg);
-                camera.DrawLeg(kid.pos - V2d(0.2, 0), kid.vel, left_leg);
+                // camera.DrawLeg(kid.pos + V2d(0.2, 0), kid.vel, right_leg);
+                // camera.DrawLeg(kid.pos - V2d(0.2, 0), kid.vel, left_leg);
                 break;
             default:
                 break;
