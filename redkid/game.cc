@@ -171,6 +171,9 @@ int main(int argc, char **argv) {
                     case Kid::SLIDING:
                         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 100, 255, 255);
                         break;
+                    case Kid::FLYING:
+                        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 255, 100, 255);
+                        break;
                 }
                 camera.DrawBox(kid.pos);
                 // camera.DrawLeg(kid.pos + V2d(0.2, 0), kid.vel, right_leg);
@@ -183,14 +186,20 @@ int main(int argc, char **argv) {
 
         V2d debug_kid_pos = camera.ToScreenSpace(kid.pos);
         V2d debug_normal = terrainp->Normal(kid.pos.x);
+        V2d debug_bearing(std::cos(kid.flying_ctx.angle), -std::sin(kid.flying_ctx.angle));
 
+        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 0, 0, 255, 255);
         // Draw debug velocity ray
         SDL_RenderDrawLine(sdl_state.sdl_renderer, debug_kid_pos.x, debug_kid_pos.y, debug_kid_pos.x + kid.vel.x, debug_kid_pos.y + kid.vel.y);
 
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
         // Draw debug normal ray
         SDL_RenderDrawLine(sdl_state.sdl_renderer, debug_kid_pos.x, debug_kid_pos.y, debug_kid_pos.x + debug_normal.x * 10, debug_kid_pos.y + debug_normal.y * 10);
-        
+
+        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 255, 255);
+        // Draw debug bearing ray
+        SDL_RenderDrawLine(sdl_state.sdl_renderer, debug_kid_pos.x, debug_kid_pos.y, debug_kid_pos.x + debug_bearing.x * 10, debug_kid_pos.y + debug_bearing.y * 10);
+
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
 
         // sleep

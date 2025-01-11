@@ -18,7 +18,7 @@ class Kid {
     void Update(UpdateContext *ctx);
 
     struct FlyingContext {
-        V2d bearing;
+        double angle;
         double min_cl;
         double max_cl;
         double max_aoa;
