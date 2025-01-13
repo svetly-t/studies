@@ -171,9 +171,9 @@ int main(int argc, char **argv) {
                     case Kid::SLIDING:
                         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 100, 255, 255);
                         break;
-                    case Kid::FLYING:
-                        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 255, 100, 255);
-                        break;
+                    // case Kid::FLYING:
+                    //     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 255, 100, 255);
+                    //     break;
                 }
                 camera.DrawBox(kid.pos);
                 // camera.DrawLeg(kid.pos + V2d(0.2, 0), kid.vel, right_leg);

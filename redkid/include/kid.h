@@ -19,6 +19,7 @@ class Kid {
 
     struct FlyingContext {
         double angle;
+        double wind_sign;
         double min_cl;
         double max_cl;
         double max_aoa;
@@ -28,7 +29,14 @@ class Kid {
     };
     FlyingContext flying_ctx;
 
+    struct StateContext {
+        double timer;
+        int x;
+    };
+    StateContext state_ctx;
+
     enum State {
+        AUTO_WALKING,
         WALKING,
         SLIDING,
         STUCK,

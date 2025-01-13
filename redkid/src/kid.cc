@@ -59,6 +59,10 @@ bool doCollision(Kid::UpdateContext *ctx, Kid::State &state, V2d normal, V2d &po
     return false;
 }
 
+void getInput() {
+
+}
+
 void Kid::Update(Kid::UpdateContext *ctx) {
     double coeff_of_friction = 0.1;
     double k_gravity = ctx->gravity;
@@ -74,16 +78,22 @@ void Kid::Update(Kid::UpdateContext *ctx) {
     if (friction_force * gravity_projected_onto_terrain > 0)
         friction_force = -friction_force;
 
-    // Make up a wind vector. Basically terrain tangent at ground level, and becomes flatter as you go higher
+    // Make up a wind vector
     V2d wind_tangent = tangent;
+    // Flatten the vector as you go higher:
     // wind_tangent.y /= std::abs(pos.y - ctx->terrainp->Height(pos.x)) + 1.0;
     wind_tangent = wind_tangent.Normalized();
+    // Point the wind in the direction that the player took off
+    wind_tangent.x *= flying_ctx.wind_sign;
 
     // Bearing based on flight angle
     V2d bearing(std::cos(flying_ctx.angle), -std::sin(flying_ctx.angle));
 
+    V2d bearing_normal = bearing.Orthogonal();
+
     // Variables for flying
     double air_coeff;
+    double air_push_const = 0.5;
     double wind_speed = 7.2; // + vel * wind_tangent;
     double lift;
     double drag;
@@ -91,35 +101,37 @@ void Kid::Update(Kid::UpdateContext *ctx) {
     double aoa_sine = std::abs(bearing ^ wind_tangent);
     double cl = calculateCl(&flying_ctx, aoa_cosine);
 
+    if (flying_ctx.angle < 0)
+        cl = -cl;
+
     switch (state) {
-        case Kid::FLYING:
-            // Technically this is the formula for the non-cl coefficient:
-            //      air_coeff = 0.5 * air_density * wind_speed * wind_speed * surface_area;
-            // But these are all relative constants, except for wind speed. So we might as well condense the other three
-            // into a magic, tweakable number.
-            if (flying_ctx.angle < 0)
-                cl = -cl;
-            air_coeff = 0.5 * wind_speed * wind_speed;
-            lift = air_coeff * cl;
-            // drag = air_coeff * cd;
-            acc.x = aoa_sine * lift;
-            acc.y = k_gravity - aoa_cosine * lift;
-            // acc += bearing * ctx->ks->s * 10;
-            // vel += a * dt
-            vel.x += acc.x * dt;
-            vel.y += acc.y * dt;
-            // pos += vel * dt
-            pos.x += vel.x * dt;
-            pos.y += vel.y * dt;
-            flying_ctx.angle += dt * -ctx->ks->x;
-            if (doCollision(ctx, state, normal, pos, vel))
-                break;
-            if (aoa_cosine < flying_ctx.stall_angle_cosine) {
-               state = Kid::STALLING;
-               break;
-            }
-            break;
-        case Kid::STALLING:
+        // case Kid::FLYING:
+        //     // Technically this is the formula for the non-cl coefficient:
+        //     //      air_coeff = 0.5 * air_density * wind_speed * wind_speed * surface_area;
+        //     // But these are all relative constants, except for wind speed. So we might as well condense the other three
+        //     // into a magic, tweakable number.
+        //     air_coeff = 0.5 * wind_speed * wind_speed;
+        //     lift = air_coeff * cl;
+        //     // drag = air_coeff * cd;
+        //     // acc.x = aoa_sine * lift;
+        //     // acc.y = k_gravity - aoa_cosine * lift;
+        //     acc = {0, 0};
+        //     acc += bearing * air_push_const * aoa_sine * wind_speed * wind_speed;
+        //     // if (aoa_cosine > flying_ctx.stall_angle_cosine)
+        //     //    acc += bearing_normal * aoa_sine * lift;
+        //     acc += gravity;
+        //     // acc += bearing * ctx->ks->s * 10;
+        //     // vel += a * dt
+        //     vel.x += acc.x * dt;
+        //     vel.y += acc.y * dt;
+        //     // pos += vel * dt
+        //     pos.x += vel.x * dt;
+        //     pos.y += vel.y * dt;
+        //     flying_ctx.angle += dt * -ctx->ks->x;
+        //     if (doCollision(ctx, state, normal, pos, vel))
+        //         break;
+        //     break;
+        // case Kid::STALLING:
         case Kid::FALLING:
             acc.x = 0;
             acc.y = k_gravity + (double)ctx->ks->y * k_gravity;
@@ -165,9 +177,10 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             if (doCollision(ctx, state, normal, pos, vel))
                 break;
             break;
+        case Kid::AUTO_WALKING:
+            // Spoof the X button being held
+            ctx->ks->x = state_ctx.x;
         case Kid::WALKING:
-            acc = {0, 0};
-            // vel += a * dt
             vel = tangent * ((V2d(0, -1) * normal) * 4.0 + 1.0) * ctx->ks->x;
             pos += vel * dt;
             // constrain to keep the kid on the line
@@ -175,15 +188,19 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // Stop walking if L/R not pressed
             if (ctx->ks->x == 0) {
                 state = Kid::IDLE;
+                state_ctx.timer = 0;
                 vel = {0, 0};
                 break;
             }
-            if (ctx->ks->y == -1) {
-                state = Kid::FLYING;
-                vel += {0, -20};
-                flying_ctx.angle = 0;
-                break;
-            }
+            // if (ctx->ks->y == -1) {
+            //     state = Kid::FLYING;
+            //     vel += {0, -20};
+            //     flying_ctx.wind_sign = std::copysign(1, vel.x);
+            //     flying_ctx.angle = 3.14159;
+            //     if (flying_ctx.wind_sign > 0)
+            //         flying_ctx.angle = 0;
+            //     break;
+            // }
             break;
         case Kid::STUCK:
         case Kid::IDLE:
@@ -193,8 +210,17 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 state = Kid::SLIDING;
                 break;
             }
+            // Start walking on x button
             if (ctx->ks->x) {
                 state = Kid::WALKING;
+                break;
+            }
+            // Start walking if we've been idling > 30s
+            state_ctx.timer += ctx->dt;
+            if (state_ctx.timer > 30.0) {
+                // Choose a direction to walk in and save it:
+                state_ctx.x = 1;
+                state = Kid::AUTO_WALKING;
                 break;
             }
             break;

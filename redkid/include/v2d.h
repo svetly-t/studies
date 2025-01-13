@@ -80,6 +80,12 @@ class V2d {
             return {0.0, 0.0}; 
         return *this / this->Magnitude();
     }
+    V2d Orthogonal() {
+        V2d result;
+        result.x = -this->y;
+        result.y = this->x;
+        return -result;
+    }
     double x;
     double y;
 };
