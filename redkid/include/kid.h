@@ -17,18 +17,6 @@ class Kid {
     };
     void Update(UpdateContext *ctx);
 
-    struct FlyingContext {
-        double angle;
-        double wind_sign;
-        double min_cl;
-        double max_cl;
-        double max_aoa;
-        double max_aoa_cosine;
-        double stall_angle;
-        double stall_angle_cosine;
-    };
-    FlyingContext flying_ctx;
-
     struct StateContext {
         double timer;
         int x;
@@ -40,9 +28,7 @@ class Kid {
         WALKING,
         SLIDING,
         STUCK,
-        FLYING,
         FALLING,
-        STALLING,
         IDLE,
     };
     State state;
