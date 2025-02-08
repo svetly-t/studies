@@ -52,8 +52,6 @@ int main(int argc, char **argv) {
 
     float dt = 16.0 / 1000.0;
 
-    // Entities<Line> lines;
-
     Game game;
 
     SdlState sdl_state(kWindowX, kWindowY);
@@ -61,6 +59,18 @@ int main(int argc, char **argv) {
     Camera camera(sdl_state.sdl_renderer, kWindowY, kWindowX);
 
     KeyState ks;
+
+    // Sprite stuff is simple stupid because I can't think of an abstraction
+    SDL_Surface *kid_sprite_surface = IMG_Load("./img/sprite_sheet.png");
+
+    SDL_Texture *kid_sprite_texture = SDL_CreateTextureFromSurface(sdl_state.sdl_renderer, kid_sprite_surface);
+
+    int kid_sprite_frame = 0;
+
+    int kid_sprite_flip = 1;
+
+    // Each kid sprite is 135 x 135 measured by hand
+    const int kKidSpriteSize = 135;
 
     Terrain *terrainp = nullptr;
 
@@ -122,6 +132,8 @@ int main(int argc, char **argv) {
                 kid_ctx.gravity = kGravity;
                 kid_ctx.ks = &ks;
                 kid_ctx.terrainp = terrainp;
+                kid_ctx.sprite_frame = &kid_sprite_frame;
+                kid_ctx.sprite_flip = &kid_sprite_flip;
                 kid.Update(&kid_ctx);
                 // Update leg animation
                 // leg_ctx.dt = dt;
@@ -171,10 +183,8 @@ int main(int argc, char **argv) {
                     case Kid::SLIDING:
                         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 100, 255, 255);
                         break;
-                    // case Kid::FLYING:
-                    //     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 100, 255, 100, 255);
-                    //     break;
                 }
+                camera.DrawSprite(kid.pos, kid_sprite_texture, kKidSpriteSize, kid_sprite_frame, 32 * kid_sprite_flip, 16);
                 camera.DrawBox(kid.pos);
                 // camera.DrawLeg(kid.pos + V2d(0.2, 0), kid.vel, right_leg);
                 // camera.DrawLeg(kid.pos - V2d(0.2, 0), kid.vel, left_leg);
@@ -186,7 +196,6 @@ int main(int argc, char **argv) {
 
         V2d debug_kid_pos = camera.ToScreenSpace(kid.pos);
         V2d debug_normal = terrainp->Normal(kid.pos.x);
-        V2d debug_bearing(std::cos(kid.flying_ctx.angle), -std::sin(kid.flying_ctx.angle));
 
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 0, 0, 255, 255);
         // Draw debug velocity ray
@@ -195,10 +204,6 @@ int main(int argc, char **argv) {
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
         // Draw debug normal ray
         SDL_RenderDrawLine(sdl_state.sdl_renderer, debug_kid_pos.x, debug_kid_pos.y, debug_kid_pos.x + debug_normal.x * 10, debug_kid_pos.y + debug_normal.y * 10);
-
-        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 255, 255);
-        // Draw debug bearing ray
-        SDL_RenderDrawLine(sdl_state.sdl_renderer, debug_kid_pos.x, debug_kid_pos.y, debug_kid_pos.x + debug_bearing.x * 10, debug_kid_pos.y + debug_bearing.y * 10);
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
 

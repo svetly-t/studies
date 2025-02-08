@@ -12,6 +12,8 @@ class Kid {
     struct UpdateContext {
         KeyState *ks;
         Terrain *terrainp;
+        int *sprite_frame;
+        int *sprite_flip;
         double dt;
         double gravity;
     };
@@ -19,7 +21,8 @@ class Kid {
 
     struct StateContext {
         double timer;
-        int x;
+        double frame_timer;
+        int last_held_x;
     };
     StateContext state_ctx;
 
@@ -27,8 +30,10 @@ class Kid {
         AUTO_WALKING,
         WALKING,
         SLIDING,
+        BECOME_STUCK,
         STUCK,
         FALLING,
+        BECOME_IDLE,
         IDLE,
     };
     State state;

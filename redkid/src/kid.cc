@@ -25,8 +25,7 @@ bool doCollision(Kid::UpdateContext *ctx, Kid::State &state, V2d normal, V2d &po
         vel -= new_normal * (vel * new_normal);
         // getting stuck in divots. The 0.05 is arbitrary
         if (new_normal.x * normal.x < -0.05) {
-            vel = {0, 0};
-            state = Kid::STUCK;
+            state = Kid::BECOME_STUCK;
             return true;
         }
         state = Kid::SLIDING;
@@ -84,8 +83,7 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             }
             // Stop sliding if spacebar not pressed
             if (vel.Magnitude() < 0.1 && ctx->ks->s == 0) {
-                state = Kid::IDLE;
-                vel = {0, 0};
+                state = Kid::BECOME_IDLE;
                 break;
             }
             // constrain to keep the kid on the line
@@ -94,7 +92,7 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             break;
         case Kid::AUTO_WALKING:
             // Spoof the X button being held
-            ctx->ks->x = state_ctx.x;
+            ctx->ks->x = state_ctx.last_held_x;
         case Kid::WALKING:
             vel = tangent * ((V2d(0, -1) * normal) * 4.0 + 1.0) * ctx->ks->x;
             pos += vel * dt;
@@ -102,11 +100,35 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             pos.y = ctx->terrainp->Height(pos.x);
             // Stop walking if L/R not pressed
             if (ctx->ks->x == 0) {
-                state = Kid::IDLE;
-                state_ctx.timer = 0;
-                vel = {0, 0};
+                state = Kid::BECOME_IDLE;
                 break;
             }
+            // Flip sprite based on x
+            if (ctx->ks->x < 0)
+                *ctx->sprite_flip = -1;
+            else
+                *ctx->sprite_flip = 1;
+            // Alternate between walk sprites based on timer
+            state_ctx.timer += ctx->dt;
+            if (state_ctx.timer > 0.25) {
+                switch (*ctx->sprite_frame) {
+                    case 1:
+                        *ctx->sprite_frame = 2;
+                        break;
+                    case 2:
+                    default:
+                        *ctx->sprite_frame = 1;
+                        break;
+                }
+                state_ctx.timer = 0;
+            }
+            break;
+        case Kid::BECOME_STUCK:
+        case Kid::BECOME_IDLE:
+            state_ctx.timer = 0;
+            *ctx->sprite_frame = 0;
+            vel = {0, 0};
+            state = Kid::IDLE;
             break;
         case Kid::STUCK:
         case Kid::IDLE:
@@ -124,8 +146,6 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // Start walking if we've been idling > 30s
             state_ctx.timer += ctx->dt;
             if (state_ctx.timer > 30.0) {
-                // Choose a direction to walk in and save it:
-                state_ctx.x = 1;
                 state = Kid::AUTO_WALKING;
                 break;
             }

@@ -53,6 +53,31 @@ void Camera::DrawBox(V2d at) {
     SDL_RenderDrawRect(_sdl_renderer, &rect);
 }
 
+void Camera::DrawSprite(V2d at, SDL_Texture *texture, int src_size, int src_frame, int dst_size, int dst_offset) {
+    SDL_Rect src;
+    SDL_Rect dst;
+    SDL_RendererFlip flip = SDL_FLIP_NONE;
+    
+    at = ToScreenSpace(at);
+
+    src.y = 0;
+    src.x = src_size * src_frame;
+    src.w = src_size;
+    src.h = src_size;
+
+    if (dst_size < 0) {
+        flip = SDL_FLIP_HORIZONTAL;
+        dst_size = -dst_size;
+    }
+
+    dst.x = at.x - dst_size / 2;
+    dst.y = at.y - dst_size / 2 - dst_offset; 
+    dst.w = dst_size;
+    dst.h = dst_size;
+
+    SDL_RenderCopyEx(_sdl_renderer, texture, &src, &dst, 0, nullptr, flip);
+}
+
 void Camera::DrawLeg(V2d at, V2d vel, Leg &leg) {
     V2d upper_leg_end;
     V2d lower_leg_end;
@@ -102,36 +127,4 @@ void Camera::DrawTerrain(Terrain *terrain) {
         dx += _window_width / kSegments * _pixel_to_double;
     }
     SDL_RenderDrawLines(_sdl_renderer, points, kSegments);
-}
-
-void Camera::DrawAll(std::unordered_map<uint64_t, Line> &lines) {
-    for (const auto &[_, l] : lines)
-        Draw(l);
-}
-
-void Camera::Draw(Line line) {
-    const size_t kSegments = 100;
-    size_t segment = 0;
-    SDL_Point points[kSegments];
-
-    V2d pt;
-    
-    for (const auto &p : line.points) {
-        pt = p;
-
-        if (!line.is_screenspace)
-            pt = ToScreenSpace(p);
-
-        if (segment >= kSegments)
-            break;
-
-        points[segment].x = pt.x;
-        points[segment].y = pt.y;
-        
-        ++segment;
-    }
-
-    SDL_SetRenderDrawColor(_sdl_renderer, line.r, line.g, line.b, 255);
-
-    SDL_RenderDrawLines(_sdl_renderer, points, segment);
 }
