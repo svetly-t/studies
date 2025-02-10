@@ -50,6 +50,10 @@ void Kid::Update(Kid::UpdateContext *ctx) {
     if (friction_force * gravity_projected_onto_terrain > 0)
         friction_force = -friction_force;
 
+    // Flip sprite based on x
+    if (ctx->ks->x != 0)
+        *ctx->sprite_flip = ctx->ks->x;
+
     switch (state) {
         case Kid::FALLING:
             acc.x = 0;
@@ -60,6 +64,9 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // pos += vel * dt
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
+            // switch sprite if significantly above the ground
+            if (pos.y + 5.0 < ctx->terrainp->Height(pos.x))
+                *ctx->sprite_frame = 5;
             // constrain to keep the kid on the line
             if (doCollision(ctx, state, normal, pos, vel))
                 break;
@@ -76,6 +83,21 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // pos += vel * dt
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
+            state_ctx.timer += ctx->dt;
+            if (vel.Magnitude() < 4.0) {
+                *ctx->sprite_frame = 4;
+            } else if (state_ctx.timer > 2.0 / vel.Magnitude()) {
+                switch (*ctx->sprite_frame) {
+                    case 3:
+                        *ctx->sprite_frame = 4;
+                        break;
+                    case 4:
+                    default:
+                        *ctx->sprite_frame = 3;
+                        break;
+                }
+                state_ctx.timer = 0;
+            }
             // if significantly above the ground we're falling
             if (pos.y < ctx->terrainp->Height(pos.x)) {
                 state = Kid::FALLING;
@@ -103,11 +125,6 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 state = Kid::BECOME_IDLE;
                 break;
             }
-            // Flip sprite based on x
-            if (ctx->ks->x < 0)
-                *ctx->sprite_flip = -1;
-            else
-                *ctx->sprite_flip = 1;
             // Alternate between walk sprites based on timer
             state_ctx.timer += ctx->dt;
             if (state_ctx.timer > 0.25) {

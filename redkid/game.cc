@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
                         break;
                 }
                 camera.DrawSprite(kid.pos, kid_sprite_texture, kKidSpriteSize, kid_sprite_frame, 32 * kid_sprite_flip, 16);
-                camera.DrawBox(kid.pos);
+                // camera.DrawBox(kid.pos);
                 // camera.DrawLeg(kid.pos + V2d(0.2, 0), kid.vel, right_leg);
                 // camera.DrawLeg(kid.pos - V2d(0.2, 0), kid.vel, left_leg);
                 break;
