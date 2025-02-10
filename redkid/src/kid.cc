@@ -113,6 +113,11 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 break;
             break;
         case Kid::AUTO_WALKING:
+            // If X is being pressed, don't autowalk
+            if (ctx->ks->x) {
+                state = Kid::WALKING;
+                break;
+            }
             // Spoof the X button being held
             ctx->ks->x = state_ctx.last_held_x;
         case Kid::WALKING:
@@ -125,6 +130,7 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 state = Kid::BECOME_IDLE;
                 break;
             }
+            state_ctx.last_held_x = ctx->ks->x;
             // Alternate between walk sprites based on timer
             state_ctx.timer += ctx->dt;
             if (state_ctx.timer > 0.25) {
@@ -162,7 +168,7 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             }
             // Start walking if we've been idling > 30s
             state_ctx.timer += ctx->dt;
-            if (state_ctx.timer > 30.0) {
+            if (state_ctx.timer > 10.0) {
                 state = Kid::AUTO_WALKING;
                 break;
             }
