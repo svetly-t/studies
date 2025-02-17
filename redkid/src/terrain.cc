@@ -35,6 +35,7 @@ void BuiltTerrain::Initialize(size_t number_of_points, double double_between_poi
     _number_of_points = number_of_points;
     _double_between_points = double_between_points;
     _points.assign(number_of_points, 0.0);
+    _highest_point = V2d(0, 0);
 }
 
 double BuiltTerrain::GetScale() {
@@ -45,12 +46,12 @@ void BuiltTerrain::getIndices(double x, size_t &floor, size_t &ceil) const {
     double high_idx;
     double low_idx = (_number_of_points * _double_between_points) / 2.0 + x;
     // Lock index to range of vector
-    if (low_idx < 0.0) {
+    if (low_idx <= 0.0) {
         floor = 0;
         ceil = 0;
         return;
     }
-    if (low_idx > _number_of_points) {
+    if (low_idx >= _number_of_points) {
         floor = _number_of_points - 1;
         ceil = _number_of_points - 1;
         return;
@@ -63,6 +64,8 @@ void BuiltTerrain::SetHeight(double x, double y) {
     size_t idx, nidx;
     getIndices(x, idx, nidx);
     _points[idx] = y;
+    if (y > _highest_point.y)
+        _highest_point = V2d(x, y);
 }
 
 double BuiltTerrain::Height(double x) const {
@@ -97,4 +100,16 @@ V2d BuiltTerrain::Normal(double x) const {
     result.x = -result.y;
     result.y = temp;
     return -result;
+}
+
+double BuiltTerrain::LeftBound() const {
+    return -(double)_number_of_points / 2.0 * _double_between_points;
+}
+
+double BuiltTerrain::RightBound() const {
+    return (double)_number_of_points / 2.0 * _double_between_points;
+}
+
+V2d BuiltTerrain::HighestPoint() const {
+    return _highest_point;
 }

@@ -7,6 +7,7 @@
 void Kid::Initialize(double x, double y) {
     pos.x = x;
     pos.y = y;
+    state = Kid::IDLE;
 }
 
 V2d calculateNormal(V2d pos, Kid::UpdateContext *ctx) {
@@ -35,6 +36,16 @@ bool doCollision(Kid::UpdateContext *ctx, Kid::State &state, V2d normal, V2d &po
     return false;
 }
 
+void doBounding(Kid::UpdateContext *ctx, V2d &pos, V2d &vel) {
+    if (pos.x < ctx->terrainp->LeftBound()) {
+        pos.x = ctx->terrainp->LeftBound();
+        vel.x = 0;
+    } else if (pos.x > ctx->terrainp->RightBound()) {
+        pos.x = ctx->terrainp->RightBound();
+        vel.x = 0;
+    }
+}
+
 void Kid::Update(Kid::UpdateContext *ctx) {
     double coeff_of_friction = 0.1;
     double k_gravity = ctx->gravity;
@@ -53,7 +64,7 @@ void Kid::Update(Kid::UpdateContext *ctx) {
     // Flip sprite based on x
     if (ctx->ks->x != 0)
         *ctx->sprite_flip = ctx->ks->x;
-
+    
     switch (state) {
         case Kid::FALLING:
             acc.x = 0;
@@ -70,6 +81,8 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // constrain to keep the kid on the line
             if (doCollision(ctx, state, normal, pos, vel))
                 break;
+            // constrain to keep the kid within terrain bounds
+            doBounding(ctx, pos, vel);
             break;
         case Kid::SLIDING:
             // acceleration is (projection of weight onto tangent of terrain curve) / mass
@@ -83,6 +96,7 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // pos += vel * dt
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
+            // Sprite management
             state_ctx.timer += ctx->dt;
             if (vel.Magnitude() < 4.0) {
                 *ctx->sprite_frame = 4;
@@ -108,6 +122,8 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 state = Kid::BECOME_IDLE;
                 break;
             }
+            // constrain to keep the kid within terrain bounds
+            doBounding(ctx, pos, vel);
             // constrain to keep the kid on the line
             if (doCollision(ctx, state, normal, pos, vel))
                 break;
@@ -116,6 +132,11 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             // If X is being pressed, don't autowalk
             if (ctx->ks->x) {
                 state = Kid::WALKING;
+                break;
+            }
+            // Stop autowalking if we're near the highest peak;
+            if (abs(pos.x - ctx->terrainp->HighestPoint().x) < 2.0) {
+                state = Kid::BECOME_IDLE;
                 break;
             }
             // Spoof the X button being held
@@ -130,6 +151,9 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 state = Kid::BECOME_IDLE;
                 break;
             }
+            // constrain to keep the kid within terrain bounds
+            doBounding(ctx, pos, vel);
+            // Save the last held x for autowalk
             state_ctx.last_held_x = ctx->ks->x;
             // Alternate between walk sprites based on timer
             state_ctx.timer += ctx->dt;
@@ -166,12 +190,26 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                 state = Kid::WALKING;
                 break;
             }
-            // Start walking if we've been idling > 30s
             state_ctx.timer += ctx->dt;
             if (state_ctx.timer > 10.0) {
-                state = Kid::AUTO_WALKING;
-                break;
+                if (abs(pos.x - ctx->terrainp->HighestPoint().x) < 2.0) {
+                    // End game if we've been standing near highest peak for 10 seconds
+                    state = Kid::BECOME_HIGHEST_PEAK;
+                    break;
+                } else {
+                    // Start walking if we've been idling > 10s
+                    state = Kid::AUTO_WALKING;
+                    break;
+                }
             }
+            break;
+        case Kid::BECOME_HIGHEST_PEAK:
+            state_ctx.timer = 0;
+            state = Kid::HIGHEST_PEAK;
+            *ctx->sprite_frame = 5;
+            break;
+        case Kid::HIGHEST_PEAK:
+            *ctx->sprite_frame = 0;
             break;
         default:
             break;

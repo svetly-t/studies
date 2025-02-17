@@ -11,6 +11,9 @@ class Terrain {
     virtual double Slope(double x) const = 0;
     virtual V2d Tangent(double x) const = 0;
     virtual V2d Normal(double x) const = 0;
+    virtual double LeftBound() const = 0;
+    virtual double RightBound() const = 0;
+    virtual V2d HighestPoint() const = 0;
     ~Terrain() {}
 };
 
@@ -30,6 +33,9 @@ class BuiltTerrain : public Terrain {
     double Slope(double x) const override;
     V2d Tangent(double x) const override;
     V2d Normal(double x) const override;
+    double LeftBound() const override;
+    double RightBound() const override;
+    V2d HighestPoint() const override;
     void Initialize(size_t number_of_points, double double_between_points);
     void SetHeight(double x, double y);
     double GetScale();
@@ -37,5 +43,6 @@ class BuiltTerrain : public Terrain {
     inline void getIndices(double x, size_t &floor, size_t &ceil) const;
     size_t _number_of_points;
     double _double_between_points;
+    V2d _highest_point;
     std::vector<double> _points;
 };

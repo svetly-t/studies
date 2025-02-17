@@ -27,6 +27,10 @@ class Camera {
 
     void DrawBox(V2d at);
 
+    void DrawFilledRect(V2d at, V2d dim);
+
+    void DrawTriangle(V2d at, double angle);
+
     void DrawSprite(V2d at, SDL_Texture *texture, int src_size, int src_frame, int dst_size, int dst_offset);
 
     void DrawLeg(V2d at, V2d vel, Leg &leg);

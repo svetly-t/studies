@@ -53,6 +53,28 @@ void Camera::DrawBox(V2d at) {
     SDL_RenderDrawRect(_sdl_renderer, &rect);
 }
 
+void Camera::DrawTriangle(V2d at, double angle_radians) {
+    const double pi = 3.14159;
+    const int triangle_radius = 8;
+    SDL_Point triangle_points[4];
+    
+    int index;
+    V2d off;
+
+    at = ToScreenSpace(at);
+
+    for (index = 0; index < 4; ++index) {
+        off.x = cos(pi / 2.0 + angle_radians);
+        off.y = sin(pi / 2.0 + angle_radians);
+        off *= triangle_radius;
+        triangle_points[index].x = at.x + off.x;
+        triangle_points[index].y = at.y + off.y;
+        angle_radians += 2.0 * pi / 3.0;
+    }
+    
+    SDL_RenderDrawLines(_sdl_renderer, triangle_points, 4);
+}
+
 void Camera::DrawSprite(V2d at, SDL_Texture *texture, int src_size, int src_frame, int dst_size, int dst_offset) {
     SDL_Rect src;
     SDL_Rect dst;

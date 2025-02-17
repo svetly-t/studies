@@ -35,6 +35,8 @@ class Kid {
         FALLING,
         BECOME_IDLE,
         IDLE,
+        BECOME_HIGHEST_PEAK,
+        HIGHEST_PEAK,
     };
     State state;
     V2d pos;
