@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "kid.h"
 #include "utilities.h"
 #include "lerp.h"
@@ -48,6 +50,7 @@ void doBounding(Kid::UpdateContext *ctx, V2d &pos, V2d &vel) {
 
 void Kid::Update(Kid::UpdateContext *ctx) {
     double coeff_of_friction = 0.1;
+    double coeff_of_walking = 0.0;
     double k_gravity = ctx->gravity;
     double dt = ctx->dt;
 
@@ -128,10 +131,19 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             if (doCollision(ctx, state, normal, pos, vel))
                 break;
             break;
-        case Kid::AUTO_WALKING:
+        case Kid::BECOME_WALKING:
+            state_ctx.hoof_speed = 1.0;            
+            state = Kid::HOOFING;
+            break;
+        case Kid::BECOME_RUNNING:
+            state_ctx.hoof_speed = 5.0;
+            state = Kid::HOOFING;
+            break;
+        case Kid::AUTO_HOOFING:
+            state_ctx.hoof_speed = 1.0;
             // If X is being pressed, don't autowalk
             if (ctx->ks->x) {
-                state = Kid::WALKING;
+                state = Kid::BECOME_WALKING;
                 break;
             }
             // Stop autowalking if we're near the highest peak;
@@ -141,8 +153,11 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             }
             // Spoof the X button being held
             ctx->ks->x = state_ctx.last_held_x;
-        case Kid::WALKING:
-            vel = tangent * ((V2d(0, -1) * normal) * 4.0 + 1.0) * ctx->ks->x;
+        case Kid::HOOFING:
+            // walk slower if going uphill, faster downhill
+            coeff_of_walking = std::max(0.0, V2d(ctx->ks->x, -1) * normal);
+            // move along <tangent> at <hoof_speed> with extra <coeff_of_walking * 4.0> boost
+            vel = tangent * (coeff_of_walking * 4.0 + state_ctx.hoof_speed) * ctx->ks->x;
             pos += vel * dt;
             // constrain to keep the kid on the line
             pos.y = ctx->terrainp->Height(pos.x);
@@ -155,9 +170,11 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             doBounding(ctx, pos, vel);
             // Save the last held x for autowalk
             state_ctx.last_held_x = ctx->ks->x;
-            // Alternate between walk sprites based on timer
+            // Increment timers
             state_ctx.timer += ctx->dt;
-            if (state_ctx.timer > 0.25) {
+            state_ctx.hoof_timer += ctx->dt;
+            // Alternate between walk sprites based on timer
+            if (state_ctx.timer > 0.25 / state_ctx.hoof_speed) {
                 switch (*ctx->sprite_frame) {
                     case 1:
                         *ctx->sprite_frame = 2;
@@ -168,6 +185,12 @@ void Kid::Update(Kid::UpdateContext *ctx) {
                         break;
                 }
                 state_ctx.timer = 0;
+            }
+            // Switch to running if the button's been held for 1 second
+            if (state_ctx.hoof_timer > 1.0) {
+                state_ctx.hoof_timer = 0;
+                state = Kid::BECOME_RUNNING;
+                break;
             }
             break;
         case Kid::BECOME_STUCK:
@@ -187,18 +210,18 @@ void Kid::Update(Kid::UpdateContext *ctx) {
             }
             // Start walking on x button
             if (ctx->ks->x) {
-                state = Kid::WALKING;
+                state = Kid::BECOME_WALKING;
                 break;
             }
             state_ctx.timer += ctx->dt;
             if (state_ctx.timer > 10.0) {
-                if (abs(pos.x - ctx->terrainp->HighestPoint().x) < 2.0) {
+                if (abs(pos.y - ctx->terrainp->HighestPoint().y) < 1.0) {
                     // End game if we've been standing near highest peak for 10 seconds
                     state = Kid::BECOME_HIGHEST_PEAK;
                     break;
                 } else {
                     // Start walking if we've been idling > 10s
-                    state = Kid::AUTO_WALKING;
+                    state = Kid::AUTO_HOOFING;
                     break;
                 }
             }

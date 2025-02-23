@@ -21,14 +21,17 @@ class Kid {
 
     struct StateContext {
         double timer;
-        double frame_timer;
         int last_held_x;
+        double hoof_speed;
+        double hoof_timer;
     };
     StateContext state_ctx;
 
     enum State {
-        AUTO_WALKING,
-        WALKING,
+        BECOME_WALKING,
+        BECOME_RUNNING,
+        AUTO_HOOFING,
+        HOOFING,
         SLIDING,
         BECOME_STUCK,
         STUCK,
