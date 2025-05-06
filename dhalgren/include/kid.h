@@ -16,8 +16,12 @@ struct Kid {
     };
     State state;
     double state_timer;
+    double charge_timer;
+
+    V2d swing_pos;
 
     V2d pos;
+    V2d vel;
 };
 
-void KidUpdate(Kid &kid, KeyState &ks, float dt);
+void KidUpdate(Kid &kid, KeyState &ks, double dt);

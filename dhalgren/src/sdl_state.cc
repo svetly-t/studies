@@ -55,6 +55,7 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
                         ks.e = 1;
                         break;
                     case SDLK_SPACE:
+                        if (!ks.s) ks.sp = 1;
                         ks.s = 1;
                         break;
                     case SDLK_ESCAPE:
