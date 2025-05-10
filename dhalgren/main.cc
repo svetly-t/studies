@@ -38,6 +38,13 @@ int main(int argc, char **argv) {
         // Draw kid rect
         SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
 
+        sdl_rect1.x = kid.swing_pos.x + 800 / 2;
+        sdl_rect1.y = kid.swing_pos.y + 600 / 2;
+        sdl_rect1.w = 2;
+        sdl_rect1.h = 2;
+
+        SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
+
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
 
         // sleep

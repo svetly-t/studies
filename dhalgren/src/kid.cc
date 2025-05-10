@@ -7,6 +7,7 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
 }
 
 void KidUpdate(Kid &kid, KeyState &ks, double dt) {
+    V2d ip;
     switch (kid.state) {
         case Kid::STAND:
             if (ks.x != 0) {
@@ -77,13 +78,19 @@ void KidUpdate(Kid &kid, KeyState &ks, double dt) {
             if (ks.s > 0.0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
+                kid.swing_pos.x = kid.pos.x + (double)ks.x * 50.0 * kid.charge_timer;
+                kid.swing_pos.y = kid.pos.y + (double)ks.y * 50.0 * kid.charge_timer;
+                kid.swing_dist = (kid.swing_pos - kid.pos).Magnitude();
                 KidSwitchState(kid, Kid::SWING);
-                kid.swing_pos.x = kid.pos.x + ks.x * 50.0 * kid.charge_timer;
-                kid.swing_pos.y = kid.pos.y + ks.y * 50.0 * kid.charge_timer;
                 break;
             }
             break;
         case Kid::SWING:
+            ip = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
+            kid.vel += (ip - kid.pos) / dt;
+            kid.vel.y += 10.0 * dt;
+            kid.pos = ip;
+            kid.pos += kid.vel * dt;
             if (ks.sp != 0) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;

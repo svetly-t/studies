@@ -19,6 +19,7 @@ struct Kid {
     double charge_timer;
 
     V2d swing_pos;
+    double swing_dist;
 
     V2d pos;
     V2d vel;
