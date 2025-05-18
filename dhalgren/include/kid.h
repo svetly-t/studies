@@ -1,5 +1,6 @@
 #pragma once
 
+#include "level.h"
 #include "sdl_state.h"
 #include "v2d.h"
 
@@ -18,6 +19,11 @@ struct Kid {
     double state_timer;
     double charge_timer;
 
+    enum CollisionState {
+        INSIDE,
+        OUTSIDE
+    };
+
     V2d swing_pos;
     double swing_dist;
 
@@ -25,4 +31,4 @@ struct Kid {
     V2d vel;
 };
 
-void KidUpdate(Kid &kid, KeyState &ks, double dt);
+void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt);

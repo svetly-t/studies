@@ -6,7 +6,7 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
     kid.charge_timer = 0.0;
 }
 
-void KidUpdate(Kid &kid, KeyState &ks, double dt) {
+void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt) {
     V2d ip;
     switch (kid.state) {
         case Kid::STAND:

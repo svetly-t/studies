@@ -75,6 +75,9 @@ class V2d {
     double Magnitude() {
         return sqrt(x * x + y * y);
     }
+    double SqrMagnitude() {
+        return x * x + y * y;
+    }
     V2d Normalized() {
         if (!this->Magnitude())
             return {0.0, 0.0}; 
@@ -85,6 +88,9 @@ class V2d {
         result.x = -this->y;
         result.y = this->x;
         return -result;
+    }
+    double Cross(const V2d& o) const {
+        return x * o.y - y * o.x;
     }
     double x;
     double y;
