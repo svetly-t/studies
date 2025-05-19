@@ -16,9 +16,15 @@ struct AABB {
     double height;
 };
 
-void AABBToPointCollision(V2d final, V2d initial);
+struct LineToLineIntersection {
+    bool exists;
+    V2d l1;
+    V2d l2;
+    V2d intersection_point;
+    V2d projection_point;
+};
 
-bool AABBToLineIntersect(AABB &aabb, Line& line, V2d i1, V2d i2);
+LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2);
 
 struct Level {
     enum State {

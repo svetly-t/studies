@@ -11,7 +11,21 @@ bool AABBToPointOverlap(AABB &aabb, V2d final) {
     return false;
 }
 
-bool LineToLineIntersect(V2d l1, V2d l2, V2d i1, V2d i2) {
+V2d LineToLineProjectionPoint(V2d l1, V2d l2, V2d i1, V2d i2) {
+    V2d tangent = (l2 - l1).Normalized();
+    return l1 + tangent * ((i2 - l1) * tangent);
+}
+
+V2d LineToLineIntersectionPoint(V2d l1, V2d l2, V2d i1, V2d i2) {
+    V2d normal = (l2 - l1).Orthogonal();
+    double proj_i2 = std::abs((i2 - l1) * normal);
+    double proj_i1 = std::abs((i1 - l1) * normal);
+    double ratio = proj_i1 / (proj_i1 + proj_i2);
+
+    return i1 + ((i2 - i1) * ratio);
+}
+
+LineToLineIntersection LineToLineIntersect(V2d l1, V2d l2, V2d i1, V2d i2) {
     // if ((i1.y < l1.y && i2.y < l2.y && i1.y < l2.y && i2.y < l1.y) ||
     //     (i1.x < l1.x && i2.x < l2.x && i1.x < l2.x && i2.x < l1.x) ||
     //     (i1.y > l1.y && i2.y > l2.y && i1.y > l2.y && i2.y > l1.y) ||
@@ -24,38 +38,54 @@ bool LineToLineIntersect(V2d l1, V2d l2, V2d i1, V2d i2) {
     double a2;
     double a3;
     double a4;
+
+    LineToLineIntersection isct;
+
+    isct.exists = false;
+    isct.l1 = l1;
+    isct.l2 = l2;
+
     a1 = (l2 - l1).Cross(i1 - l1);
     a2 = (l2 - l1).Cross(i2 - l1);
     if (std::copysign(1.0, a1) == std::copysign(1.0, a2))
-        return false;
+        return isct;
+
     a3 = std::abs((i2 - i1).Cross(l1 - i1));
     a4 = std::abs((i2 - i1).Cross(l2 - i1));
     if (a4 > a3)
         a3 = a4;
-    return (a3 < std::abs(a1) + std::abs(a2));    
+
+    if (!(a3 < std::abs(a1) + std::abs(a2)))
+        return isct;
+
+    isct.exists = true;
+    isct.intersection_point = LineToLineIntersectionPoint(l1, l2, i1, i2);
+    isct.projection_point = LineToLineProjectionPoint(l1, l2, i1, i2);
+
+    return isct;
 }
 
-bool AABBToLineIntersect(AABB &aabb, Line& line, V2d i1, V2d i2) {
+LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2) {
     V2d aabb_width = { aabb.width, 0.0 };
     V2d aabb_height = { 0.0, aabb.height };
     V2d aabb_corner = aabb.pos + aabb_width + aabb_height;
-    if (LineToLineIntersect(aabb.pos, aabb.pos + aabb_width, i1, i2)) {
-        line = { aabb.pos, aabb.pos + aabb_width };
-        return true;
-    }
-    if (LineToLineIntersect(aabb.pos, aabb.pos + aabb_height, i1, i2)) {
-        line = { aabb.pos, aabb.pos + aabb_height };
-        return true;
-    }
-    if (LineToLineIntersect(aabb_corner, aabb_corner - aabb_width, i1, i2)) {
-        line = { aabb_corner, aabb_corner - aabb_width };
-        return true;
-    }
-    if (LineToLineIntersect(aabb_corner, aabb_corner - aabb_height, i1, i2)) {
-        line = { aabb_corner, aabb_corner - aabb_height };
-        return true;
-    }
-    return false;
+
+    LineToLineIntersection isct;
+
+    isct = LineToLineIntersect(aabb.pos, aabb.pos + aabb_width, i1, i2);
+    if (isct.exists)
+        return isct;
+    isct = LineToLineIntersect(aabb.pos, aabb.pos + aabb_height, i1, i2);
+    if (isct.exists)
+        return isct;
+    isct = LineToLineIntersect(aabb_corner, aabb_corner - aabb_width, i1, i2);
+    if (isct.exists)
+        return isct;
+    isct = LineToLineIntersect(aabb_corner, aabb_corner - aabb_height, i1, i2);
+    if (isct.exists)
+        return isct;
+
+    return isct;
 }
 
 void LevelSwitchState(Level &level, Level::State new_state) {

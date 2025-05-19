@@ -79,12 +79,25 @@ int main(int argc, char **argv) {
         // Draw level test line
         SDL_RenderDrawLine(sdl_state.sdl_renderer, level.l1.x, level.l1.y, level.l2.x, level.l2.y);
 
-        Line isct;
+        LineToLineIntersection isct;
 
-        if (AABBToLineIntersect(level.aabb, isct, level.l1, level.l2)) {
+        isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
+        if (isct.exists) {
             // Draw level test line
             SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
-            SDL_RenderDrawLine(sdl_state.sdl_renderer, isct.p1.x, isct.p1.y, isct.p2.x, isct.p2.y);
+            SDL_RenderDrawLine(sdl_state.sdl_renderer, isct.l1.x, isct.l1.y, isct.l2.x, isct.l2.y);
+            sdl_rect1.x = isct.intersection_point.x;
+            sdl_rect1.y = isct.intersection_point.y;
+            sdl_rect1.w = 4;
+            sdl_rect1.h = 4;
+            // Draw aabb rect
+            SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
+            sdl_rect1.x = isct.projection_point.x;
+            sdl_rect1.y = isct.projection_point.y;
+            sdl_rect1.w = 4;
+            sdl_rect1.h = 4;
+            // Draw aabb rect
+            SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
         }
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
