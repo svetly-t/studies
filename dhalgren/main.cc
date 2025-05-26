@@ -15,6 +15,10 @@ void DrawAABB(SdlState &sdl_state, AABB aabb) {
     DrawBoxAtV2d(sdl_state, aabb.pos, aabb.width, aabb.height);
 }
 
+void DrawLine(SdlState &sdl_state, V2d p1, V2d p2) {
+    SDL_RenderDrawLine(sdl_state.sdl_renderer, p1.x, p1.y, p2.x, p2.y);
+}
+
 int main(int argc, char **argv) {
     bool exit = false;
 
@@ -82,10 +86,10 @@ int main(int argc, char **argv) {
         }
 
         // Draw level test line
-        SDL_RenderDrawLine(sdl_state.sdl_renderer, level.l1.x, level.l1.y, level.l2.x, level.l2.y);
+        DrawLine(sdl_state, level.l1, level.l2);
 
         // Draw kid velocity line
-        SDL_RenderDrawLine(sdl_state.sdl_renderer, kid.pos.x, kid.pos.y, level.l2.x, level.l2.y);
+        DrawLine(sdl_state, kid.pos, kid.pos + kid.vel);
 
         LineToLineIntersection isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
         if (isct.exists) {
@@ -93,6 +97,7 @@ int main(int argc, char **argv) {
             SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
             DrawBoxAtV2d(sdl_state, isct.intersection_point, 4, 4);
             DrawBoxAtV2d(sdl_state, isct.projection_point, 4, 4);
+            DrawLine(sdl_state, isct.projection_point, isct.projection_point + isct.normal * 8.0);
         }
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);

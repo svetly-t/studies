@@ -22,9 +22,12 @@ struct LineToLineIntersection {
     V2d l2;
     V2d intersection_point;
     V2d projection_point;
+    V2d normal;
 };
 
 LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2);
+
+LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l);
 
 struct Level {
     enum State {

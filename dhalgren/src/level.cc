@@ -26,15 +26,12 @@ V2d LineToLineIntersectionPoint(V2d l1, V2d l2, V2d i1, V2d i2) {
     return i1 + ((i2 - i1) * ratio);
 }
 
+V2d LineToLineIntersectionNormal(V2d l1, V2d l2, V2d i1, V2d i2) {
+    V2d normal = (l2 - l1).Orthogonal();
+    return normal.Normalized(); // * std::copysign(1.0, (l2-l1).Cross(i1-l1)) * -1.0 /* I don't know why this -1.0 is needed */;
+}
+
 LineToLineIntersection LineToLineIntersect(V2d l1, V2d l2, V2d i1, V2d i2) {
-    // if ((i1.y < l1.y && i2.y < l2.y && i1.y < l2.y && i2.y < l1.y) ||
-    //     (i1.x < l1.x && i2.x < l2.x && i1.x < l2.x && i2.x < l1.x) ||
-    //     (i1.y > l1.y && i2.y > l2.y && i1.y > l2.y && i2.y > l1.y) ||
-    //     (i1.x > l1.x && i2.x > l2.x && i1.x > l2.x && i2.x > l1.x))
-    //         return false;
-    // if (std::copysign(1.0, (l2 - l1).Cross(i1)) != std::copysign(1.0, (l2 - l1).Cross(i2)))
-    //     return true;
-    // return false;
     double a1;
     double a2;
     double a3;
@@ -62,6 +59,7 @@ LineToLineIntersection LineToLineIntersect(V2d l1, V2d l2, V2d i1, V2d i2) {
     isct.exists = true;
     isct.intersection_point = LineToLineIntersectionPoint(l1, l2, i1, i2);
     isct.projection_point = LineToLineProjectionPoint(l1, l2, i1, i2);
+    isct.normal = LineToLineIntersectionNormal(l1, l2, i1, i2);
 
     return isct;
 }
@@ -69,24 +67,27 @@ LineToLineIntersection LineToLineIntersect(V2d l1, V2d l2, V2d i1, V2d i2) {
 LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2) {
     V2d aabb_width = { aabb.width, 0.0 };
     V2d aabb_height = { 0.0, aabb.height };
-    V2d aabb_corner = aabb.pos + aabb_width + aabb_height;
 
     LineToLineIntersection isct;
 
     isct = LineToLineIntersect(aabb.pos, aabb.pos + aabb_width, i1, i2);
     if (isct.exists)
         return isct;
-    isct = LineToLineIntersect(aabb.pos, aabb.pos + aabb_height, i1, i2);
+    isct = LineToLineIntersect(aabb.pos + aabb_width, aabb.pos + aabb_width + aabb_height, i1, i2);
     if (isct.exists)
         return isct;
-    isct = LineToLineIntersect(aabb_corner, aabb_corner - aabb_width, i1, i2);
+    isct = LineToLineIntersect(aabb.pos + aabb_width + aabb_height, aabb.pos + aabb_height, i1, i2);
     if (isct.exists)
         return isct;
-    isct = LineToLineIntersect(aabb_corner, aabb_corner - aabb_height, i1, i2);
+    isct = LineToLineIntersect(aabb.pos + aabb_height, aabb.pos, i1, i2);
     if (isct.exists)
         return isct;
 
     return isct;
+}
+
+LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
+    return AABBToLineIntersect(aabb, l.p1, l.p2);
 }
 
 void LevelInitialize(Level &level, int window_x, int window_y) {
@@ -147,6 +148,7 @@ void LevelUpdate(Level &level, KeyState &ks, double dt) {
                     level.aabb.pos.y += level.aabb.height;
                     level.aabb.height = -level.aabb.height;
                 }
+                level.aabbs.push_back(level.aabb);
                 LevelSwitchState(level, Level::READY_BOX);
                 break;
             }

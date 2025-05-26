@@ -6,24 +6,35 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
     kid.charge_timer = 0.0;
 }
 
-void KidCollision(Kid &kid, KidUpdateContext ctx) {
+LineToLineIntersection KidCollision(Kid &kid, KidUpdateContext ctx) {
     V2d pos_to_isct;
+    LineToLineIntersection isct;
+
     Level &level = *(ctx.level);
     double dt = ctx.dt;
     double meters_per_pixel = ctx.meters_per_pixel;
-    LineToLineIntersection isct = AABBToLineIntersect(level.aabb, kid.pos, kid.pos + kid.vel * dt);
-    if (isct.exists) {
-        pos_to_isct = isct.intersection_point - kid.pos;
-        kid.pos = isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
-        kid.vel = (isct.projection_point - isct.intersection_point) / dt;
+    
+    for (auto &aabb: level.aabbs) {
+        isct = AABBToLineIntersect(aabb, kid.pos, kid.pos + kid.vel * dt);
+        if (isct.exists) {
+            pos_to_isct = isct.intersection_point - kid.pos;
+            kid.pos = isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
+            kid.vel = (isct.projection_point - isct.intersection_point) / dt;
+            break;
+        }
     }
+
+    return isct;
 }
 
 void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     V2d ip;
+    LineToLineIntersection isct;
+
     KeyState &ks = *(ctx.ks);
     Level &level = *(ctx.level);
     double dt = ctx.dt;
+
     switch (kid.state) {
         case Kid::STAND:
             if (ks.x != 0) {
@@ -71,7 +82,14 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::JUMP:
-            KidCollision(kid, ctx);
+            isct = KidCollision(kid, ctx);
+            if (isct.exists) {
+                if (isct.normal.y < 0.0) {
+                    kid.vel.y = 0.0;
+                    KidSwitchState(kid, Kid::RUN);
+                    break;
+                }
+            }
             kid.pos.x += kid.vel.x * dt;
             kid.pos.y += kid.vel.y * dt;
             kid.vel.y += 10.0 * dt;
