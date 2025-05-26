@@ -41,4 +41,6 @@ struct Level {
     std::vector<AABB> aabbs;
 };
 
+void LevelInitialize(Level &level, int window_x, int window_y);
+
 void LevelUpdate(Level &level, KeyState &ks, double dt);

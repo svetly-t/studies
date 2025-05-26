@@ -1,4 +1,5 @@
 #include "level.h"
+#include "sdl_state.h"
 
 #include <cmath>
 
@@ -86,6 +87,14 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2) {
         return isct;
 
     return isct;
+}
+
+void LevelInitialize(Level &level, int window_x, int window_y) {
+    AABB ground;
+    ground.height = window_y / 2;
+    ground.width = window_x;
+    ground.height = window_y / 2;
+    level.aabbs.push_back(ground);
 }
 
 void LevelSwitchState(Level &level, Level::State new_state) {

@@ -19,11 +19,6 @@ struct Kid {
     double state_timer;
     double charge_timer;
 
-    enum CollisionState {
-        INSIDE,
-        OUTSIDE
-    };
-
     V2d swing_pos;
     double swing_dist;
 
@@ -31,4 +26,11 @@ struct Kid {
     V2d vel;
 };
 
-void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt);
+struct KidUpdateContext {
+    Level *level;
+    KeyState *ks;
+    double meters_per_pixel;
+    double dt;
+};
+
+void KidUpdate(Kid &kid, KidUpdateContext ctx);

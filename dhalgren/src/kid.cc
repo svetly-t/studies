@@ -6,8 +6,24 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
     kid.charge_timer = 0.0;
 }
 
-void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt) {
+void KidCollision(Kid &kid, KidUpdateContext ctx) {
+    V2d pos_to_isct;
+    Level &level = *(ctx.level);
+    double dt = ctx.dt;
+    double meters_per_pixel = ctx.meters_per_pixel;
+    LineToLineIntersection isct = AABBToLineIntersect(level.aabb, kid.pos, kid.pos + kid.vel * dt);
+    if (isct.exists) {
+        pos_to_isct = isct.intersection_point - kid.pos;
+        kid.pos = isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
+        kid.vel = (isct.projection_point - isct.intersection_point) / dt;
+    }
+}
+
+void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     V2d ip;
+    KeyState &ks = *(ctx.ks);
+    Level &level = *(ctx.level);
+    double dt = ctx.dt;
     switch (kid.state) {
         case Kid::STAND:
             if (ks.x != 0) {
@@ -28,6 +44,7 @@ void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt) {
             }
             break;
         case Kid::RUN:
+            KidCollision(kid, ctx);
             kid.pos.x += kid.vel.x * dt;
             if (ks.x == 0) {
                 KidSwitchState(kid, Kid::STAND);
@@ -43,6 +60,7 @@ void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt) {
             }
             break;
         case Kid::CHARGE_JUMP:
+            KidCollision(kid, ctx);
             kid.pos.x += kid.vel.x * dt;
             kid.vel.x *= (1.0 - dt);
             kid.charge_timer += dt;
@@ -53,10 +71,11 @@ void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt) {
             }
             break;
         case Kid::JUMP:
+            KidCollision(kid, ctx);
             kid.pos.x += kid.vel.x * dt;
             kid.pos.y += kid.vel.y * dt;
             kid.vel.y += 10.0 * dt;
-            if (kid.pos.y > 0.0) {
+            if (kid.pos.y > 400.0) {
                 kid.vel.y = 0.0;
                 KidSwitchState(kid, Kid::STAND);
                 break;
@@ -67,10 +86,11 @@ void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt) {
             }
             break;
         case Kid::CHARGE_SHOT:
+            KidCollision(kid, ctx);
             kid.pos.x += kid.vel.x * dt;
             kid.pos.y += kid.vel.y * dt;
             kid.vel.y += 10.0 * dt;
-            if (kid.pos.y > 0.0) {
+            if (kid.pos.y > 400.0) {
                 kid.vel.y = 0.0;
                 KidSwitchState(kid, Kid::STAND);
                 break;
@@ -86,6 +106,7 @@ void KidUpdate(Kid &kid, Level &level, KeyState &ks, double dt) {
             }
             break;
         case Kid::SWING:
+            KidCollision(kid, ctx);
             ip = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
             kid.vel += (ip - kid.pos) / dt;
             kid.vel.y += 10.0 * dt;

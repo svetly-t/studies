@@ -2,6 +2,19 @@
 #include "include/v2d.h"
 #include "include/kid.h"
 
+void DrawBoxAtV2d(SdlState &sdl_state, V2d pos, int width, int height) {
+    SDL_Rect sdl_rect;
+    sdl_rect.x = pos.x;
+    sdl_rect.y = pos.y;
+    sdl_rect.w = width;
+    sdl_rect.h = height;
+    SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect);
+}
+
+void DrawAABB(SdlState &sdl_state, AABB aabb) {
+    DrawBoxAtV2d(sdl_state, aabb.pos, aabb.width, aabb.height);
+}
+
 int main(int argc, char **argv) {
     bool exit = false;
 
@@ -16,6 +29,7 @@ int main(int argc, char **argv) {
     unsigned int ticks_in_frame;
     unsigned int ticks_to_next_frame;
     double dt;
+    double meters_per_pixel = 0.1;
 
     // ---
 
@@ -25,7 +39,11 @@ int main(int argc, char **argv) {
 
     kid.state = Kid::STAND;
 
+    KidUpdateContext kid_update_ctx;
+
     ticks_after_update = SDL_GetTicks();
+
+    LevelInitialize(level, 800, 600);
 
     for (;!exit;) {
         ticks_start_of_frame = SDL_GetTicks();
@@ -34,7 +52,11 @@ int main(int argc, char **argv) {
 
         dt = (double)(SDL_GetTicks() - ticks_after_update) / 1000.0;
     
-        KidUpdate(kid, level, ks, dt);
+        kid_update_ctx.level = &level;
+        kid_update_ctx.ks = &ks;
+        kid_update_ctx.dt = dt;
+        kid_update_ctx.meters_per_pixel = meters_per_pixel;
+        KidUpdate(kid, kid_update_ctx);
 
         LevelUpdate(level, ks, dt);
 
@@ -47,57 +69,30 @@ int main(int argc, char **argv) {
 
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
-        SDL_Rect sdl_rect1;
-        sdl_rect1.x = kid.pos.x + 800 / 2;
-        sdl_rect1.y = kid.pos.y + 600 / 2;
-        sdl_rect1.w = 16;
-        sdl_rect1.h = 16;
-        // Draw kid rect
-        SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
+        DrawBoxAtV2d(sdl_state, kid.pos, 16, 16);
 
-        sdl_rect1.x = kid.swing_pos.x + 800 / 2;
-        sdl_rect1.y = kid.swing_pos.y + 600 / 2;
-        sdl_rect1.w = 2;
-        sdl_rect1.h = 2;
-        // Draw swing pos dot
-        SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
+        DrawBoxAtV2d(sdl_state, kid.swing_pos, 2, 2);
 
-        sdl_rect1.x = ks.mx;
-        sdl_rect1.y = ks.my;
-        sdl_rect1.w = 2;
-        sdl_rect1.h = 2;
-        // Draw mouse rect
-        SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
+        DrawBoxAtV2d(sdl_state, { (double)ks.mx, (double)ks.my }, 2, 2);
 
-        sdl_rect1.x = level.aabb.pos.x;
-        sdl_rect1.y = level.aabb.pos.y;
-        sdl_rect1.w = level.aabb.width;
-        sdl_rect1.h = level.aabb.height;
-        // Draw aabb rect
-        SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
+        DrawAABB(sdl_state, level.aabb);
+
+        for (auto &aabb : level.aabbs) {
+            DrawAABB(sdl_state, aabb);
+        }
 
         // Draw level test line
         SDL_RenderDrawLine(sdl_state.sdl_renderer, level.l1.x, level.l1.y, level.l2.x, level.l2.y);
 
-        LineToLineIntersection isct;
+        // Draw kid velocity line
+        SDL_RenderDrawLine(sdl_state.sdl_renderer, kid.pos.x, kid.pos.y, level.l2.x, level.l2.y);
 
-        isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
+        LineToLineIntersection isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
         if (isct.exists) {
             // Draw level test line
             SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
-            SDL_RenderDrawLine(sdl_state.sdl_renderer, isct.l1.x, isct.l1.y, isct.l2.x, isct.l2.y);
-            sdl_rect1.x = isct.intersection_point.x;
-            sdl_rect1.y = isct.intersection_point.y;
-            sdl_rect1.w = 4;
-            sdl_rect1.h = 4;
-            // Draw aabb rect
-            SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
-            sdl_rect1.x = isct.projection_point.x;
-            sdl_rect1.y = isct.projection_point.y;
-            sdl_rect1.w = 4;
-            sdl_rect1.h = 4;
-            // Draw aabb rect
-            SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect1);
+            DrawBoxAtV2d(sdl_state, isct.intersection_point, 4, 4);
+            DrawBoxAtV2d(sdl_state, isct.projection_point, 4, 4);
         }
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
