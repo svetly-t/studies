@@ -2,20 +2,43 @@
 #include "include/v2d.h"
 #include "include/kid.h"
 
-void DrawBoxAtV2d(SdlState &sdl_state, V2d pos, int width, int height) {
+static int kScreenWidth = 800;
+static int kScreenHeight = 600;
+
+struct Camera {
+    V2d pos;
+};
+
+void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double dt) {
+    V2d origin;
+    V2d transform_screen = { (double)kScreenWidth / 2, (double)kScreenHeight / 2 };
+    V2d ks_mp = { (double)ks.mx, (double)ks.my };
+
+    camera.pos += (kid.pos - camera.pos) * dt;
+    origin = camera.pos - transform_screen;
+
+    mouse_pos = origin + ks_mp;
+}
+
+void DrawBoxAtV2d(SdlState &sdl_state, Camera &camera, V2d pos, int width, int height) {
+    V2d transformed_pos;
     SDL_Rect sdl_rect;
-    sdl_rect.x = pos.x;
-    sdl_rect.y = pos.y;
+    transformed_pos = pos - camera.pos;
+    sdl_rect.x = transformed_pos.x + kScreenWidth / 2;
+    sdl_rect.y = transformed_pos.y + kScreenHeight / 2;
     sdl_rect.w = width;
     sdl_rect.h = height;
     SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect);
 }
 
-void DrawAABB(SdlState &sdl_state, AABB aabb) {
-    DrawBoxAtV2d(sdl_state, aabb.pos, aabb.width, aabb.height);
+void DrawAABB(SdlState &sdl_state, Camera &camera, AABB aabb) {
+    DrawBoxAtV2d(sdl_state, camera, aabb.pos, aabb.width, aabb.height);
 }
 
-void DrawLine(SdlState &sdl_state, V2d p1, V2d p2) {
+void DrawLine(SdlState &sdl_state, Camera &camera, V2d p1, V2d p2) {
+    V2d transform_screen = { (double)kScreenWidth / 2, (double)kScreenHeight / 2 };
+    p1 = p1 - camera.pos + transform_screen;
+    p2 = p2 - camera.pos + transform_screen;
     SDL_RenderDrawLine(sdl_state.sdl_renderer, p1.x, p1.y, p2.x, p2.y);
 }
 
@@ -47,9 +70,13 @@ int main(int argc, char **argv) {
 
     KidUpdateContext kid_update_ctx;
 
+    Camera camera;
+
+    V2d mouse_pos;
+
     ticks_after_update = SDL_GetTicks();
 
-    LevelInitialize(level, 800, 600);
+    LevelInitialize(level, kScreenWidth, kScreenHeight);
 
     for (;!exit;) {
         ticks_start_of_frame = SDL_GetTicks();
@@ -64,7 +91,9 @@ int main(int argc, char **argv) {
         kid_update_ctx.meters_per_pixel = meters_per_pixel;
         KidUpdate(kid, kid_update_ctx);
 
-        LevelUpdate(level, ks, dt);
+        CameraUpdate(camera, kid, ks, mouse_pos, dt);
+
+        LevelUpdate(level, ks, mouse_pos, dt);
 
         ticks_after_update = SDL_GetTicks();
 
@@ -75,31 +104,31 @@ int main(int argc, char **argv) {
 
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
-        DrawBoxAtV2d(sdl_state, kid.pos, 16, 16);
+        DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 
-        DrawBoxAtV2d(sdl_state, kid.swing_pos, 2, 2);
+        DrawBoxAtV2d(sdl_state, camera, kid.swing_pos, 2, 2);
 
-        DrawBoxAtV2d(sdl_state, { (double)ks.mx, (double)ks.my }, 2, 2);
+        DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);
 
-        DrawAABB(sdl_state, level.aabb);
+        DrawAABB(sdl_state, camera, level.aabb);
 
         for (auto &aabb : level.aabbs) {
-            DrawAABB(sdl_state, aabb);
+            DrawAABB(sdl_state, camera, aabb);
         }
 
         // Draw level test line
-        DrawLine(sdl_state, level.l1, level.l2);
+        DrawLine(sdl_state, camera, level.l1, level.l2);
 
         // Draw kid velocity line
-        DrawLine(sdl_state, kid.pos, kid.pos + kid.vel);
+        DrawLine(sdl_state, camera, kid.pos, kid.pos + kid.vel);
 
         LineToLineIntersection isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
         if (isct.exists) {
             // Draw level test line
             SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
-            DrawBoxAtV2d(sdl_state, isct.intersection_point, 4, 4);
-            DrawBoxAtV2d(sdl_state, isct.projection_point, 4, 4);
-            DrawLine(sdl_state, isct.projection_point, isct.projection_point + isct.normal * 8.0);
+            DrawBoxAtV2d(sdl_state, camera, isct.intersection_point, 4, 4);
+            DrawBoxAtV2d(sdl_state, camera, isct.projection_point, 4, 4);
+            DrawLine(sdl_state, camera, isct.projection_point, isct.projection_point + isct.normal * 8.0);
         }
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);

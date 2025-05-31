@@ -106,7 +106,7 @@ uint64_t LevelChunkMapIndex(double x, double y) {
     return ((uint64_t)iy << 31) | (uint64_t)ix;
 }
 
-void LevelUpdate(Level &level, KeyState &ks, double dt) {
+void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt) {
     switch (level.state) {
         case Level::READY_BOX:
             if (ks.ep != 0) {
@@ -115,8 +115,7 @@ void LevelUpdate(Level &level, KeyState &ks, double dt) {
             }
             if (ks.mlc != 0) {
                 LevelSwitchState(level, Level::ADJUST_BOX);
-                level.aabb.pos.x = ks.mx;
-                level.aabb.pos.y = ks.my;
+                level.aabb.pos = mouse_pos;
                 break;
             }
             break;
@@ -127,22 +126,20 @@ void LevelUpdate(Level &level, KeyState &ks, double dt) {
             }
             if (ks.mlc != 0) {
                 LevelSwitchState(level, Level::ADJUST_LINE);
-                level.l1.x = ks.mx;
-                level.l1.y = ks.my;
+                level.l1 = mouse_pos;
                 break;
             }
             break;
         case Level::ADJUST_LINE:
-            level.l2.x = ks.mx;
-            level.l2.y = ks.my;
+            level.l2 = mouse_pos;
             if (ks.mlc == 0) {
                 LevelSwitchState(level, Level::READY_LINE);
                 break;
             }
             break;
         case Level::ADJUST_BOX:
-            level.aabb.width = ks.mx - level.aabb.pos.x;
-            level.aabb.height = ks.my - level.aabb.pos.y;
+            level.aabb.width = mouse_pos.x - level.aabb.pos.x;
+            level.aabb.height = mouse_pos.y - level.aabb.pos.y;
             if (ks.mlc == 0) {
                 if (level.aabb.width < 0.0) {
                     level.aabb.pos.x += level.aabb.width;

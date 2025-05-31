@@ -114,27 +114,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.pos.x += kid.vel.x * dt;
             kid.pos.y += kid.vel.y * dt;
             kid.vel.y += 10.0 * dt;
-            if (kid.pos.y > 400.0) {
-                kid.vel.y = 0.0;
-                KidSwitchState(kid, Kid::STAND);
-                break;
-            }
-            if (ks.sp != 0.0) {
-                KidSwitchState(kid, Kid::CHARGE_SHOT);
-                break;
-            }
-            break;
-        case Kid::CHARGE_SHOT:
-            KidCollision(kid, velocity_isct, ground_isct, ctx);
-            kid.pos.x += kid.vel.x * dt;
-            kid.pos.y += kid.vel.y * dt;
-            kid.vel.y += 10.0 * dt;
-            if (kid.pos.y > 400.0) {
-                kid.vel.y = 0.0;
-                KidSwitchState(kid, Kid::STAND);
-                break;
-            }
-            if (ks.s > 0.0) {
+            if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
                 kid.swing_pos.x = kid.pos.x + (double)ks.x * 50.0 * kid.charge_timer;
@@ -151,7 +131,9 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.vel.y += 10.0 * dt;
             kid.pos = ip;
             kid.pos += kid.vel * dt;
-            if (ks.sp != 0) {
+            if (ks.s > 0) {
+                kid.charge_timer += dt;
+            } else if (kid.charge_timer > 0.0) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }

@@ -58,4 +58,4 @@ void LevelChunkMapUpdate(AABB aabb, int aabb_index);
 
 void LevelInitialize(Level &level, int window_x, int window_y);
 
-void LevelUpdate(Level &level, KeyState &ks, double dt);
+void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt);
