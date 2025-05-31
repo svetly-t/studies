@@ -43,6 +43,8 @@ int main(int argc, char **argv) {
 
     kid.state = Kid::STAND;
 
+    kid.pos.x = 100;
+
     KidUpdateContext kid_update_ctx;
 
     ticks_after_update = SDL_GetTicks();

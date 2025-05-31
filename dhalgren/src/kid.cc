@@ -6,30 +6,39 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
     kid.charge_timer = 0.0;
 }
 
-LineToLineIntersection KidCollision(Kid &kid, KidUpdateContext ctx) {
+void KidCollision(
+    Kid &kid,
+    LineToLineIntersection &velocity_isct,
+    LineToLineIntersection &ground_isct,
+    KidUpdateContext ctx
+) {
     V2d pos_to_isct;
-    LineToLineIntersection isct;
+    V2d downward;
 
     Level &level = *(ctx.level);
     double dt = ctx.dt;
     double meters_per_pixel = ctx.meters_per_pixel;
+
+    downward.y = 8.0;
     
     for (auto &aabb: level.aabbs) {
-        isct = AABBToLineIntersect(aabb, kid.pos, kid.pos + kid.vel * dt);
-        if (isct.exists) {
-            pos_to_isct = isct.intersection_point - kid.pos;
-            kid.pos = isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
-            kid.vel = (isct.projection_point - isct.intersection_point) / dt;
+        velocity_isct = AABBToLineIntersect(aabb, kid.pos, kid.pos + kid.vel * dt);
+        if (velocity_isct.exists) {
+            pos_to_isct = velocity_isct.intersection_point - kid.pos;
+            kid.pos = velocity_isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
+            kid.vel = (velocity_isct.projection_point - velocity_isct.intersection_point) / dt;
             break;
         }
+        if (!ground_isct.exists)
+            ground_isct = AABBToLineIntersect(aabb, kid.pos, kid.pos + downward);
     }
-
-    return isct;
 }
 
 void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     V2d ip;
-    LineToLineIntersection isct;
+    LineToLineIntersection velocity_isct;
+    LineToLineIntersection ground_isct;
+    double run_speed;
 
     KeyState &ks = *(ctx.ks);
     Level &level = *(ctx.level);
@@ -37,41 +46,49 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
 
     switch (kid.state) {
         case Kid::STAND:
+            KidCollision(kid, velocity_isct, ground_isct, ctx);
             if (ks.x != 0) {
-                KidSwitchState(kid, Kid::START_RUN);
-                break;
-            }
-            break;
-        case Kid::START_RUN:
-            kid.state_timer += dt;
-            if (kid.state_timer > 0.05) {
-                kid.vel.x = ks.x * 50.0;
                 KidSwitchState(kid, Kid::RUN);
-                break;
-            }
-            if (ks.x == 0) {
-                KidSwitchState(kid, Kid::STAND);
-                break;
-            }
-            break;
-        case Kid::RUN:
-            KidCollision(kid, ctx);
-            kid.pos.x += kid.vel.x * dt;
-            if (ks.x == 0) {
-                KidSwitchState(kid, Kid::STAND);
-                break;
-            }
-            if (ks.x * kid.vel.x < 0) {
-                KidSwitchState(kid, Kid::START_RUN);
                 break;
             }
             if (ks.s > 0) {
                 KidSwitchState(kid, Kid::CHARGE_JUMP);
                 break;
             }
+            if (!ground_isct.exists) {
+                KidSwitchState(kid, Kid::JUMP);
+                break;
+            }
+            break;
+        case Kid::RUN:
+            // Reset the state timer when directionality changes
+            if (kid.vel.x * ks.x < 0) {
+                kid.state_timer = 0.0;
+            }
+            // Change speed
+            if (kid.state_timer < 0.33) {
+                kid.vel.x = 20.0 * ks.x;
+            } else {
+                kid.vel.x = 100.0 * ks.x;
+            }
+            KidCollision(kid, velocity_isct, ground_isct, ctx);
+            kid.pos.x += kid.vel.x * dt;
+            if (ks.x == 0) {
+                KidSwitchState(kid, Kid::STAND);
+                break;
+            }
+            if (ks.s > 0) {
+                KidSwitchState(kid, Kid::CHARGE_JUMP);
+                break;
+            }
+            if (!ground_isct.exists) {
+                KidSwitchState(kid, Kid::JUMP);
+                break;
+            }
+            kid.state_timer += dt;
             break;
         case Kid::CHARGE_JUMP:
-            KidCollision(kid, ctx);
+            KidCollision(kid, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             kid.vel.x *= (1.0 - dt);
             kid.charge_timer += dt;
@@ -80,11 +97,15 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }
+            if (!ground_isct.exists) {
+                KidSwitchState(kid, Kid::JUMP);
+                break;
+            }
             break;
         case Kid::JUMP:
-            isct = KidCollision(kid, ctx);
-            if (isct.exists) {
-                if (isct.normal.y < 0.0) {
+            KidCollision(kid, velocity_isct, ground_isct, ctx);
+            if (velocity_isct.exists) {
+                if (velocity_isct.normal.y < 0.0) {
                     kid.vel.y = 0.0;
                     KidSwitchState(kid, Kid::RUN);
                     break;
@@ -104,7 +125,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::CHARGE_SHOT:
-            KidCollision(kid, ctx);
+            KidCollision(kid, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             kid.pos.y += kid.vel.y * dt;
             kid.vel.y += 10.0 * dt;
@@ -124,7 +145,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::SWING:
-            KidCollision(kid, ctx);
+            KidCollision(kid, velocity_isct, ground_isct, ctx);
             ip = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
             kid.vel += (ip - kid.pos) / dt;
             kid.vel.y += 10.0 * dt;

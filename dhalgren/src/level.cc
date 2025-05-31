@@ -90,16 +90,20 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
     return AABBToLineIntersect(aabb, l.p1, l.p2);
 }
 
-void LevelInitialize(Level &level, int window_x, int window_y) {
-    AABB ground;
-    ground.height = window_y / 2;
-    ground.width = window_x;
-    ground.height = window_y / 2;
-    level.aabbs.push_back(ground);
-}
+void LevelInitialize(Level &level, int window_x, int window_y) {}
 
 void LevelSwitchState(Level &level, Level::State new_state) {
     level.state = new_state;
+}
+
+uint64_t LevelChunkMapIndex(double x, double y) {
+    int ix = (int)x;
+    int iy = (int)y;
+
+    ix = ix - (ix % Chunk::kWidth);
+    iy = iy - (iy % Chunk::kHeight);
+
+    return ((uint64_t)iy << 31) | (uint64_t)ix;
 }
 
 void LevelUpdate(Level &level, KeyState &ks, double dt) {
