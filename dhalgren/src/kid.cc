@@ -1,5 +1,10 @@
 #include "kid.h"
 
+void KidInitialize(Kid &kid) {
+    kid.state = Kid::STAND;
+    kid.pos.x = 100;
+}
+
 void KidSwitchState(Kid &kid, Kid::State new_state) {
     kid.state = new_state;
     kid.state_timer = 0.0;

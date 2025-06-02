@@ -33,4 +33,6 @@ struct KidUpdateContext {
     double dt;
 };
 
+void KidInitialize(Kid &kid);
+
 void KidUpdate(Kid &kid, KidUpdateContext ctx);

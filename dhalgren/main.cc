@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
 
     SdlStateInitialize(sdl_state, 800, 600);
 
+    unsigned int frame;
     unsigned int ticks_start_of_frame;
     unsigned int ticks_after_update;
     unsigned int ticks_in_frame;
@@ -58,15 +59,17 @@ int main(int argc, char **argv) {
     double dt;
     double meters_per_pixel = 0.1;
 
+    V2d upward = { 0.0, 1.0 };
+
+    V2d rightward = { 1.0, 0.0 };
+
     // ---
 
     Level level;
 
     Kid kid;
 
-    kid.state = Kid::STAND;
-
-    kid.pos.x = 100;
+    KidInitialize(kid);
 
     KidUpdateContext kid_update_ctx;
 
@@ -74,11 +77,13 @@ int main(int argc, char **argv) {
 
     V2d mouse_pos;
 
+    frame = 0;
+
     ticks_after_update = SDL_GetTicks();
 
     LevelInitialize(level, kScreenWidth, kScreenHeight);
 
-    for (;!exit;) {
+    for (;!exit; ++frame) {
         ticks_start_of_frame = SDL_GetTicks();
 
         SdlStatePollEvents(ks, exit);
@@ -104,7 +109,21 @@ int main(int argc, char **argv) {
 
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
-        DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
+        DrawLine(
+            sdl_state,
+            camera,
+            kid.pos + upward * (frame % 2) * 4.0,
+            kid.pos - upward * (frame % 2) * 4.0
+        );
+
+        DrawLine(
+            sdl_state,
+            camera,
+            kid.pos + rightward * (frame % 2) * 4.0,
+            kid.pos - rightward * (frame % 2) * 4.0
+        );
+
+        // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 
         DrawBoxAtV2d(sdl_state, camera, kid.swing_pos, 2, 2);
 

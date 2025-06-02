@@ -90,7 +90,9 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
     return AABBToLineIntersect(aabb, l.p1, l.p2);
 }
 
-void LevelInitialize(Level &level, int window_x, int window_y) {}
+void LevelInitialize(Level &level, int window_x, int window_y) {
+    level.state = Level::READY_BOX;
+}
 
 void LevelSwitchState(Level &level, Level::State new_state) {
     level.state = new_state;
