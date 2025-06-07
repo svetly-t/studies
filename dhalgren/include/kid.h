@@ -25,6 +25,7 @@ struct Kid {
     V2d swing_vel[kSwingPoints];
     double swing_dist;
     double swing_segment_dist;
+    double swing_segment_dist_stretched;
 
     V2d pos;
     V2d vel;
