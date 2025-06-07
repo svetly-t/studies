@@ -12,7 +12,8 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
 }
 
 void KidCollision(
-    Kid &kid,
+    V2d &pos,
+    V2d &vel,
     LineToLineIntersection &velocity_isct,
     LineToLineIntersection &ground_isct,
     KidUpdateContext ctx
@@ -27,17 +28,22 @@ void KidCollision(
     downward.y = 8.0;
     
     for (auto &aabb: level.aabbs) {
-        velocity_isct = AABBToLineIntersect(aabb, kid.pos, kid.pos + kid.vel * dt);
+        velocity_isct = AABBToLineIntersect(aabb, pos, pos + vel * dt);
         if (velocity_isct.exists) {
-            pos_to_isct = velocity_isct.intersection_point - kid.pos;
-            kid.pos = velocity_isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
-            kid.vel = (velocity_isct.projection_point - velocity_isct.intersection_point) / dt;
+            pos_to_isct = velocity_isct.intersection_point - pos;
+            pos = velocity_isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
+            vel = (velocity_isct.projection_point - velocity_isct.intersection_point) / dt;
             break;
         }
         if (!ground_isct.exists)
-            ground_isct = AABBToLineIntersect(aabb, kid.pos, kid.pos + downward);
+            ground_isct = AABBToLineIntersect(aabb, pos, pos + downward);
     }
 }
+
+struct SwingWeights {
+    double w0;
+    double w1;
+};
 
 void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     V2d ip;
@@ -49,9 +55,14 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     Level &level = *(ctx.level);
     double dt = ctx.dt;
 
+    SwingWeights weights[kSwingPoints - 1] = {{ 0.0, 1.0 }};
+    for (int i = 1; i < kSwingPoints - 1; ++i) {
+        weights[i] = { 0.5, 0.5 };
+    }
+
     switch (kid.state) {
         case Kid::STAND:
-            KidCollision(kid, velocity_isct, ground_isct, ctx);
+            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             if (ks.x != 0) {
                 KidSwitchState(kid, Kid::RUN);
                 break;
@@ -76,7 +87,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             } else {
                 kid.vel.x = 100.0 * ks.x;
             }
-            KidCollision(kid, velocity_isct, ground_isct, ctx);
+            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             if (ks.x == 0) {
                 KidSwitchState(kid, Kid::STAND);
@@ -93,7 +104,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.state_timer += dt;
             break;
         case Kid::CHARGE_JUMP:
-            KidCollision(kid, velocity_isct, ground_isct, ctx);
+            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             kid.vel.x *= (1.0 - dt);
             kid.charge_timer += dt;
@@ -108,7 +119,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::JUMP:
-            KidCollision(kid, velocity_isct, ground_isct, ctx);
+            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             if (velocity_isct.exists) {
                 if (velocity_isct.normal.y < 0.0) {
                     kid.vel.y = 0.0;
@@ -116,26 +127,52 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                     break;
                 }
             }
-            kid.pos.x += kid.vel.x * dt;
-            kid.pos.y += kid.vel.y * dt;
+            kid.pos += kid.vel * dt;
             kid.vel.y += 10.0 * dt;
             if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
-                kid.swing_pos.x = kid.pos.x + (double)ks.x * 50.0 * kid.charge_timer;
-                kid.swing_pos.y = kid.pos.y + (double)ks.y * 50.0 * kid.charge_timer;
-                kid.swing_dist = (kid.swing_pos - kid.pos).Magnitude();
+                kid.swing_pos[0].x = kid.pos.x + (double)ks.x * 50.0 * kid.charge_timer;
+                kid.swing_pos[0].y = kid.pos.y + (double)ks.y * 50.0 * kid.charge_timer;
+                kid.swing_vel[0] = { 0.0, 0.0 };
+                kid.swing_dist = (kid.swing_pos[0] - kid.pos).Magnitude();
+                kid.swing_segment_dist = kid.swing_dist / (kSwingPoints - 1);
+                for (int i = 1; i < kSwingPoints - 1; ++i) {
+                    kid.swing_pos[i] = kid.swing_pos[0] + (kid.pos - kid.swing_pos[0]).Normalized() * i * kid.swing_segment_dist;
+                    kid.swing_vel[i] = {0.0, 0.0};
+                }
+                kid.swing_pos[kSwingPoints - 1] = kid.pos;
+                kid.swing_vel[kSwingPoints - 1] = kid.vel;
                 KidSwitchState(kid, Kid::SWING);
                 break;
             }
             break;
         case Kid::SWING:
-            KidCollision(kid, velocity_isct, ground_isct, ctx);
-            ip = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
-            kid.vel += (ip - kid.pos) / dt;
-            kid.vel.y += 10.0 * dt;
-            kid.pos = ip;
-            kid.pos += kid.vel * dt;
+            for (int j = 0; j < kSwingPoints - 1; ++j) {
+                V2d p0 = kid.swing_pos[j];
+                V2d p1 = kid.swing_pos[j + 1];
+                V2d vector = p1 - p0;
+                V2d normal = vector.Normalized();
+                double displacement = vector.Magnitude();
+                double diff = kid.swing_segment_dist - displacement;
+                V2d p0_1 = p0 - normal * (diff * weights[j].w0);
+                V2d p1_1 = p1 + normal * (diff * weights[j].w1);
+                kid.swing_pos[j] = p0_1;
+                kid.swing_pos[j + 1] = p1_1;
+                kid.swing_vel[j] += (p0_1 - p0) / dt;
+                kid.swing_vel[j + 1] += (p1_1 - p1) / dt;
+                if (j != 0) {
+                    if (j == kSwingPoints - 2) {
+                        KidCollision(kid.swing_pos[j + 1], kid.swing_vel[j + 1], velocity_isct, ground_isct, ctx);
+                    }
+                    kid.swing_pos[j] += kid.swing_vel[j] * dt;
+                    kid.swing_pos[j + 1] += kid.swing_vel[j + 1] * dt;
+                    kid.swing_vel[j].y += 80.0 * dt;
+                    kid.swing_vel[j + 1].y += 80.0 * dt;
+                }
+            }
+            kid.pos = kid.swing_pos[kSwingPoints - 1];
+            kid.vel = kid.swing_vel[kSwingPoints - 1];
             if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {

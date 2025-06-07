@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 
     SdlState sdl_state;
 
-    SdlStateInitialize(sdl_state, 800, 600);
+    SdlStateInitialize(sdl_state, kScreenWidth, kScreenHeight);
 
     unsigned int frame;
     unsigned int ticks_start_of_frame;
@@ -125,7 +125,10 @@ int main(int argc, char **argv) {
 
         // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 
-        DrawBoxAtV2d(sdl_state, camera, kid.swing_pos, 2, 2);
+        for (int i = 0; i < kSwingPoints - 2; ++i) {
+            DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[0], 2, 2);
+            DrawLine(sdl_state, camera, kid.swing_pos[i], kid.swing_pos[i + 1]);
+        } 
 
         DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);
 
