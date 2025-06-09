@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 
         // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 
-        for (int i = 0; i < kSwingPoints - 2; ++i) {
+        for (int i = 0; i < kSwingPoints - 1; ++i) {
             DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[0], 2, 2);
             DrawLine(sdl_state, camera, kid.swing_pos[i], kid.swing_pos[i + 1]);
         } 

@@ -26,6 +26,7 @@ void KidCollision(
     double meters_per_pixel = ctx.meters_per_pixel;
 
     downward.y = 8.0;
+    velocity_isct.exists = false;
     
     for (auto &aabb: level.aabbs) {
         velocity_isct = AABBToLineIntersect(aabb, pos, pos + vel * dt);
@@ -165,21 +166,19 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 V2d p0_1 = p0 - normal * (diff * weights[j].w0);
                 V2d p1_1 = p1 + normal * (diff * weights[j].w1);
                 kid.swing_pos[j] = p0_1;
-                kid.swing_pos[j + 1] = p1_1;
                 kid.swing_vel[j] += (p0_1 - p0) / dt;
+                kid.swing_pos[j + 1] = p1_1;
                 kid.swing_vel[j + 1] += (p1_1 - p1) / dt;
-                if (j != 0) {
-                    kid.swing_vel[j].y += 80.0 * dt;
-                    kid.swing_vel[j + 1].y += 80.0 * dt;
-                    if (j == kSwingPoints - 2) {
-                        KidCollision(kid.swing_pos[j + 1], kid.swing_vel[j + 1], velocity_isct, ground_isct, ctx);
-                    }
-                    kid.swing_pos[j] += kid.swing_vel[j] * dt;
-                    kid.swing_pos[j + 1] += kid.swing_vel[j + 1] * dt;
-                }
             }
-            kid.pos = kid.swing_pos[kSwingPoints - 1];
-            kid.vel = kid.swing_vel[kSwingPoints - 1];
+            for (int j = 1; j < kSwingPoints; ++j) {
+                kid.swing_vel[j].y += 80.0 * dt;
+                kid.swing_pos[j] += kid.swing_vel[j] * dt;
+            }
+            kid.vel = (kid.swing_pos[kSwingPoints - 1] - kid.pos) / dt;
+            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+            kid.pos += kid.vel * dt;
+            kid.swing_pos[kSwingPoints - 1] = kid.pos;
+            kid.swing_vel[kSwingPoints - 1] = kid.vel;
             if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
