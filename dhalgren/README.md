@@ -52,3 +52,7 @@ For intellisense support, your `.vscode/c_cpp_properties.json` should look somet
     "version": 4
 }
 ```
+
+## Steps for mac
+
+It's been too long, but I think you just need to `brew install sdl2 sdl2_image sdl2_ttf`?
