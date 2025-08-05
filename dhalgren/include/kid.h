@@ -21,12 +21,13 @@ struct Kid {
     double state_timer;
     double charge_timer;
 
-    V2d swing_pos[kSwingPoints];
-    V2d swing_vel[kSwingPoints];
+    V2d swing_pos;
+    V2d swing_vel;
     double swing_dist;
     double swing_segment_dist;
     double swing_segment_dist_stretched;
 
+    V2d prev_pos;
     V2d pos;
     V2d vel;
 };

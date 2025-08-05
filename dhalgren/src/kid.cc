@@ -47,7 +47,9 @@ struct Weights {
 };
 
 void KidUpdate(Kid &kid, KidUpdateContext ctx) {
-    V2d ip;
+    V2d intended_pos;
+    V2d current_pos;
+    V2d acc;
     LineToLineIntersection velocity_isct;
     LineToLineIntersection ground_isct;
     double run_speed;
@@ -131,54 +133,29 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                     break;
                 }
             }
-            kid.pos += kid.vel * dt;
             kid.vel.y += 80.0 * dt;
+            kid.pos += kid.vel * dt;
+            kid.prev_pos = kid.pos;
             if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
-                kid.swing_pos[0].x = kid.pos.x + (double)ks.x * 50.0 * kid.charge_timer;
-                kid.swing_pos[0].y = kid.pos.y + (double)ks.y * 50.0 * kid.charge_timer;
-                kid.swing_vel[0] = { 0.0, 0.0 };
-                kid.swing_dist = (kid.swing_pos[0] - kid.pos).Magnitude();
-                kid.swing_segment_dist = kid.swing_dist / (kSwingPoints - 1);
-                for (int i = 1; i < kSwingPoints - 1; ++i) {
-                    kid.swing_pos[i] = kid.swing_pos[0] + (kid.pos - kid.swing_pos[0]).Normalized() * i * kid.swing_segment_dist;
-                    kid.swing_vel[i] = {0.0, 0.0};
-                }
-                kid.swing_pos[kSwingPoints - 1] = kid.pos;
-                kid.swing_vel[kSwingPoints - 1] = kid.vel;
+                kid.swing_pos.x = kid.pos.x + (double)ks.x * 50.0 * kid.charge_timer;
+                kid.swing_pos.y = kid.pos.y + (double)ks.y * 50.0 * kid.charge_timer;
+                kid.swing_dist = (kid.swing_pos - kid.pos).Magnitude();
                 KidSwitchState(kid, Kid::SWING);
                 break;
             }
             break;
         case Kid::SWING:
-            kid.swing_segment_dist_stretched = kid.swing_segment_dist;
-            if (ks.e > 0) {
-                kid.swing_segment_dist_stretched = kid.swing_segment_dist * 0.75;
-            }
-            for (int j = 0; j < kSwingPoints - 1; ++j) {
-                V2d p0 = kid.swing_pos[j];
-                V2d p1 = kid.swing_pos[j + 1];
-                V2d vector = p1 - p0;
-                V2d normal = vector.Normalized();
-                double displacement = vector.Magnitude();
-                double diff = kid.swing_segment_dist_stretched - displacement;
-                V2d p0_1 = p0 - normal * (diff * weights[j].w0);
-                V2d p1_1 = p1 + normal * (diff * weights[j].w1);
-                kid.swing_pos[j] = p0_1;
-                kid.swing_vel[j] += (p0_1 - p0) / dt;
-                kid.swing_pos[j + 1] = p1_1;
-                kid.swing_vel[j + 1] += (p1_1 - p1) / dt;
-            }
-            for (int j = 1; j < kSwingPoints; ++j) {
-                kid.swing_vel[j].y += 80.0 * dt;
-                kid.swing_pos[j] += kid.swing_vel[j] * dt;
-            }
-            kid.vel = (kid.swing_pos[kSwingPoints - 1] - kid.pos) / dt;
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
-            kid.pos += kid.vel * dt;
-            kid.swing_pos[kSwingPoints - 1] = kid.pos;
-            kid.swing_vel[kSwingPoints - 1] = kid.vel;
+            intended_pos = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
+            acc = (intended_pos - kid.prev_pos);
+            acc.y += 80.0;
+            kid.pos = intended_pos;
+            current_pos = kid.pos;
+            kid.pos = current_pos * 2.0 - kid.prev_pos + acc * dt * dt;
+            kid.vel = (current_pos - kid.prev_pos) / dt;
+            kid.prev_pos = current_pos;
             if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {

@@ -10,7 +10,7 @@ void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height
                                   SDL_WINDOWPOS_UNDEFINED,
                                   window_width,
                                   window_height,
-                                  SDL_WINDOW_ALLOW_HIGHDPI);
+                                  0);
     if (!sdl_state.sdl_window) {
         abort();
     }
