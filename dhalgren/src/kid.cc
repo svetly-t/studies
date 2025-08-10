@@ -41,15 +41,73 @@ void KidCollision(
     }
 }
 
+void KidRopeStart(Kid &kid, KidUpdateContext ctx, V2d endpoint) {
+    kid.swing_pos[0] = endpoint;
+    kid.swing_dist = (endpoint - kid.pos).Magnitude();
+    for (int i = 0; i < kSwingPoints; ++i) {
+        kid.swing_pos[i] = endpoint + (kid.pos - endpoint) * (double)i/(double)(kSwingPoints - 1);
+        kid.swing_pos_prev[i] = endpoint + (kid.prev_pos - endpoint) * (double)i/(double)(kSwingPoints - 1);
+    }
+}
+
+void singleVerletConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double dist) {
+    V2d real = pos2 - pos1;
+
+    V2d dir = real.Normalized();
+
+    double real_dist = real.Magnitude();
+
+    double offset = real_dist - dist;
+
+    // move pos1 towards pos2 by weight 1
+    pos1 += dir * offset * w1;
+
+    pos2 -= dir * offset * w2;
+}
+
+void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
+    V2d current_pos;
+    V2d acc;
+
+    double w1, w2;
+    double dt = ctx.dt;
+    double constraint_dist = kid.swing_dist / (double)(kSwingPoints - 1);
+
+    // Constrain all the rope points
+    for (int i = 1; i < kSwingPoints; ++i) {
+        if (i == 1) {
+            w1 = 0;
+            w2 = 1.0;
+        } else if (i == kSwingPoints - 1) {
+            w1 = 0.95;
+            w2 = 0.05;
+        } else {
+            w1 = 0.5;
+            w2 = 0.5;
+        }
+        singleVerletConstraint(kid.swing_pos[i - 1], kid.swing_pos[i], w1, w2, constraint_dist);
+    }
+
+    // Do verlet integration using the previous frame's rope points and this frame's
+    for (int i = 1; i < kSwingPoints; ++i) {
+        acc = (kid.swing_pos[i] - kid.swing_pos_prev[i]);
+        acc.y += 80.0;
+        current_pos = kid.swing_pos[i];
+        kid.swing_pos[i] = current_pos * 2.0 - kid.swing_pos_prev[i] + acc * dt * dt;
+        kid.vel = (current_pos - kid.swing_pos_prev[i]) / dt;
+        kid.swing_pos_prev[i] = current_pos;
+        kid.prev_pos = current_pos;
+    }
+
+    kid.pos = kid.swing_pos[kSwingPoints - 1];
+}
+
 struct Weights {
     double w0;
     double w1;
 };
 
 void KidUpdate(Kid &kid, KidUpdateContext ctx) {
-    V2d intended_pos;
-    V2d current_pos;
-    V2d acc;
     LineToLineIntersection velocity_isct;
     LineToLineIntersection ground_isct;
     double run_speed;
@@ -134,28 +192,27 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 }
             }
             kid.vel.y += 80.0 * dt;
-            kid.pos += kid.vel * dt;
             kid.prev_pos = kid.pos;
+            kid.pos += kid.vel * dt;
             if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
-                kid.swing_pos.x = kid.pos.x + (double)ks.x * 50.0 * kid.charge_timer;
-                kid.swing_pos.y = kid.pos.y + (double)ks.y * 50.0 * kid.charge_timer;
-                kid.swing_dist = (kid.swing_pos - kid.pos).Magnitude();
+                KidRopeStart(kid, ctx, kid.pos + V2d(ks.x, ks.y) * 50.0 * kid.charge_timer);
                 KidSwitchState(kid, Kid::SWING);
                 break;
             }
             break;
         case Kid::SWING:
-            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
-            intended_pos = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
-            acc = (intended_pos - kid.prev_pos);
-            acc.y += 80.0;
-            kid.pos = intended_pos;
-            current_pos = kid.pos;
-            kid.pos = current_pos * 2.0 - kid.prev_pos + acc * dt * dt;
-            kid.vel = (current_pos - kid.prev_pos) / dt;
-            kid.prev_pos = current_pos;
+            // KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+            // intended_pos = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
+            // acc = (intended_pos - kid.prev_pos);
+            // acc.y += 80.0;
+            // kid.pos = intended_pos;
+            // current_pos = kid.pos;
+            // kid.pos = current_pos * 2.0 - kid.prev_pos + acc * dt * dt;
+            // kid.vel = (current_pos - kid.prev_pos) / dt;
+            // kid.prev_pos = current_pos;
+            KidRopeUpdate(kid, ctx);
             if (ks.s > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {

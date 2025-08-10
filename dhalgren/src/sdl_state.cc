@@ -1,5 +1,7 @@
 #include "sdl_state.h"
 
+#include <SDL2/SDL_hints.h>
+
 void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height) {
     SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -14,6 +16,8 @@ void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height
     if (!sdl_state.sdl_window) {
         abort();
     }
+
+    // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
     sdl_state.sdl_surface = SDL_GetWindowSurface(sdl_state.sdl_window);
     if (!sdl_state.sdl_surface) {

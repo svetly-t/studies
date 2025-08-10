@@ -112,22 +112,22 @@ int main(int argc, char **argv) {
         DrawLine(
             sdl_state,
             camera,
-            kid.pos + upward * (frame % 2) * 4.0,
-            kid.pos - upward * (frame % 2) * 4.0
+            kid.pos + upward * 4.0, // * (frame % 2),
+            kid.pos - upward * 4.0 // * (frame % 2)
         );
 
         DrawLine(
             sdl_state,
             camera,
-            kid.pos + rightward * (frame % 2) * 4.0,
-            kid.pos - rightward * (frame % 2) * 4.0
+            kid.pos + rightward * 4.0, // * (frame % 2),
+            kid.pos - rightward * 4.0 // * (frame % 2)
         );
 
         // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 
         for (int i = 0; i < kSwingPoints - 1; ++i) {
-            DrawBoxAtV2d(sdl_state, camera, kid.swing_pos, 2, 2);
-            DrawLine(sdl_state, camera, kid.swing_pos, kid.pos);
+            DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[i], 2, 2);
+            DrawLine(sdl_state, camera, kid.swing_pos[i], kid.swing_pos[i + 1]);
         } 
 
         DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);
@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
             ticks_to_next_frame = 0;
 
         // sleep
-        SDL_Delay(ticks_to_next_frame);
+        // SDL_Delay(ticks_to_next_frame);
     }
 
     return 0;

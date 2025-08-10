@@ -4,7 +4,7 @@
 #include "sdl_state.h"
 #include "v2d.h"
 
-const int kSwingPoints = 10;
+const int kSwingPoints = 24;
 
 struct Kid {
     enum State {
@@ -21,11 +21,9 @@ struct Kid {
     double state_timer;
     double charge_timer;
 
-    V2d swing_pos;
-    V2d swing_vel;
+    V2d swing_pos[kSwingPoints];
+    V2d swing_pos_prev[kSwingPoints];
     double swing_dist;
-    double swing_segment_dist;
-    double swing_segment_dist_stretched;
 
     V2d prev_pos;
     V2d pos;
