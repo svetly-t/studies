@@ -4,7 +4,7 @@
 #include "sdl_state.h"
 #include "v2d.h"
 
-const int kSwingPoints = 24;
+const int kSwingPoints = 10;
 
 struct Kid {
     enum State {

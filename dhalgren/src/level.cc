@@ -2,6 +2,7 @@
 #include "sdl_state.h"
 
 #include <cmath>
+#include <cstdio>
 
 bool AABBToPointOverlap(AABB &aabb, V2d final) {
     if (final.y > aabb.pos.y &&
@@ -108,17 +109,102 @@ uint64_t LevelChunkMapIndex(double x, double y) {
     return ((uint64_t)iy << 31) | (uint64_t)ix;
 }
 
+void LevelSave(Level &level) {
+    int written;
+    char buf[256];
+    const char *filename = "data.lvl";
+    SDL_RWops *file = SDL_RWFromFile(filename, "r+");
+
+    if (!file) {
+        printf("%s does not exist, attempting to create...\n", filename);
+
+        file = SDL_RWFromFile(filename, "w+");
+
+        if (!file) {
+            printf("cannot open %s, aborting...\n", filename);
+            exit(1);
+        }
+    }
+
+    for (AABB &aabb : level.aabbs) {
+        written = snprintf(buf, sizeof(buf), "%lf,%lf,%lf,%lf\n", aabb.pos.x, aabb.pos.y, aabb.width, aabb.height);
+        SDL_RWwrite(file, buf, written, 1);
+    }
+
+    SDL_RWclose(file);
+}
+
+void LevelLoad(Level &level) {
+    AABB aabb;
+    char buf[256];
+    size_t current_offset = 0;
+    size_t seek = 0;
+    const char *filename = "data.lvl";
+    SDL_RWops *file = SDL_RWFromFile(filename, "r");
+
+    if (!file) {
+        printf("%s does not exist, returning...\n", filename);
+        return;
+    }
+
+    level.aabbs.clear();
+
+    while (1) {
+        current_offset = SDL_RWtell(file);
+        seek = 0;
+
+        if (SDL_RWread(file, buf, 1, sizeof(buf)) == 0) {
+            printf("Error reading file: %s\n", SDL_GetError());
+            break;
+        }
+
+        while (buf[seek++] != '\n') {}
+
+        SDL_RWseek(file, current_offset + seek, RW_SEEK_SET);
+        
+        sscanf(buf, "%lf,%lf,%lf,%lf", &aabb.pos.x, &aabb.pos.y, &aabb.width, &aabb.height);
+        
+        level.aabbs.push_back(AABB{
+            .pos = { aabb.pos.x, aabb.pos.y },
+            .width = aabb.width,
+            .height = aabb.height
+        });
+    }
+}
+
+bool LevelRemoveBox(Level &level, V2d mouse_pos) {
+    for (size_t i = 0; i < level.aabbs.size(); ++i) {
+        if (AABBToPointOverlap(level.aabbs[i], mouse_pos)) {
+            level.aabbs[i] = level.aabbs[level.aabbs.size() - 1];
+            level.aabbs.pop_back();
+            return true;
+        }
+    }
+    return false;
+}
+
 void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt) {
+    bool removed_box = false;
     switch (level.state) {
         case Level::READY_BOX:
             if (ks.ep != 0) {
                 LevelSwitchState(level, Level::READY_LINE);
                 break;
             }
+            if (ks.mrcp != 0) {
+                if (LevelRemoveBox(level, mouse_pos))
+                    break;
+            }
             if (ks.mlc != 0) {
                 LevelSwitchState(level, Level::ADJUST_BOX);
                 level.aabb.pos = mouse_pos;
                 break;
+            }
+            if (ks.sp != 0) {
+                LevelSave(level);
+            }
+            if (ks.lp != 0) {
+                LevelLoad(level);
             }
             break;
         case Level::READY_LINE:
@@ -130,6 +216,12 @@ void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt) {
                 LevelSwitchState(level, Level::ADJUST_LINE);
                 level.l1 = mouse_pos;
                 break;
+            }
+            if (ks.sp != 0) {
+                LevelSave(level);
+            }
+            if (ks.lp != 0) {
+                LevelLoad(level);
             }
             break;
         case Level::ADJUST_LINE:

@@ -8,12 +8,16 @@ struct KeyState {
     int x = 0;
     int y = 0;
     int s = 0;
+    int l = 0;
+    int spc = 0;
     int e = 0;
     int esc = 0;
     // pressed
     int xp = 0;
     int yp = 0;
     int sp = 0;
+    int lp = 0;
+    int spcp = 0;
     int ep = 0;
     int escp = 0;
     // mouse position relative to window
