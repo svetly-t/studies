@@ -50,7 +50,7 @@ void KidRopeStart(Kid &kid, KidUpdateContext ctx, V2d endpoint) {
     }
 }
 
-void singleVerletConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double dist) {
+void singleRopeConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double dist) {
     V2d real = pos2 - pos1;
 
     V2d dir = real.Normalized();
@@ -85,16 +85,21 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
             w1 = 0.5;
             w2 = 0.5;
         }
-        singleVerletConstraint(kid.swing_pos[i - 1], kid.swing_pos[i], w1, w2, constraint_dist);
+        singleRopeConstraint(kid.swing_pos[i - 1], kid.swing_pos[i], w1, w2, constraint_dist);
     }
 
     // Do verlet integration using the previous frame's rope points and this frame's
+    // See https://www.algorithm-archive.org/contents/verlet_integration/verlet_integration.html
     for (int i = 1; i < kSwingPoints; ++i) {
         acc = (kid.swing_pos[i] - kid.swing_pos_prev[i]);
         acc.y += 80.0;
         current_pos = kid.swing_pos[i];
+        // This is the verlet part: x(t + dt) = 2x        - x(x - dt) + a * dt**2
+        //                    i.e.: next_pos  = 2*cur_pos - prev_pos  + acceleration * dt**2
         kid.swing_pos[i] = current_pos * 2.0 - kid.swing_pos_prev[i] + acc * dt * dt;
-        kid.vel = (current_pos - kid.swing_pos_prev[i]) / dt;
+        // Sometimes we have dt is 0.0; in that case the kid's vel goes to infinity 
+        if (dt > 0.0)
+            kid.vel = (current_pos - kid.swing_pos_prev[i]) / dt;
         kid.swing_pos_prev[i] = current_pos;
         kid.prev_pos = current_pos;
     }

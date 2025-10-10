@@ -5,7 +5,7 @@
 CXX := g++ -g
 CXXFLAGS := -Iinclude -std=c++17
 LDFLAGS := -L/usr/local/lib
-LDLIBS := -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf
+LDLIBS := -lSDL2main -lSDL2 -lSDL2_image
 WIN_LDLIBS := -lmingw32 $(LDLIBS)
 
 # Files and directories
