@@ -17,7 +17,7 @@ void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height
         abort();
     }
 
-    // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
     sdl_state.sdl_surface = SDL_GetWindowSurface(sdl_state.sdl_window);
     if (!sdl_state.sdl_surface) {
@@ -30,7 +30,7 @@ void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height
 void SdlStatePollEvents(KeyState &ks, bool &exit) {
     SDL_Event sdl_event;
 
-    for (;SDL_PollEvent(&sdl_event) > 0;) {
+    if (SDL_WaitEvent(&sdl_event)) {
         switch (sdl_event.type) {
             case SDL_QUIT:
                 exit = true;

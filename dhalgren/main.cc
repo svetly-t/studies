@@ -6,6 +6,7 @@
 
 static int kScreenWidth = 800;
 static int kScreenHeight = 600;
+static unsigned int kNanosecondsInFrame = 1000000000ull/60ull;
 
 struct Camera {
     V2d pos;
@@ -44,6 +45,28 @@ void DrawLine(SdlState &sdl_state, Camera &camera, V2d p1, V2d p2) {
     SDL_RenderDrawLine(sdl_state.sdl_renderer, p1.x, p1.y, p2.x, p2.y);
 }
 
+// https://discourse.libsdl.org/t/poor-performance-of-sdl2-on-macos/28276/3
+Uint32 timerTickCallBack(Uint32 iIntervalInMilliseconds, void *param) {
+    SDL_Event event;
+    SDL_UserEvent userevent;
+
+    if (SDL_HasEvent(SDL_USEREVENT) == false) {
+        // add an SDL_USEREVENT to the message queue
+        userevent.type = SDL_USEREVENT;
+        userevent.code = 0;
+        userevent.data1 = NULL;
+        userevent.data2 = NULL;
+
+        event.type = SDL_USEREVENT;
+        event.user = userevent;
+
+        SDL_PushEvent(&event);
+    }
+
+    // call back again in ‘iIntervalInMilliseconds’ milliseconds
+    return iIntervalInMilliseconds;
+}
+
 int main(int argc, char **argv) {
     bool exit = false;
 
@@ -58,6 +81,7 @@ int main(int argc, char **argv) {
     double meters_per_pixel = 0.1;
     auto start_of_frame_clock = std::chrono::high_resolution_clock::now();
     auto end_of_update_clock = std::chrono::high_resolution_clock::now();
+    SDL_TimerID timerID = SDL_AddTimer(16, timerTickCallBack, NULL);
 
     V2d upward = { 0.0, 1.0 };
 
@@ -153,7 +177,7 @@ int main(int argc, char **argv) {
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
 
-        while (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-start_of_frame_clock).count() < 16666667) {}
+        while (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-start_of_frame_clock).count() < kNanosecondsInFrame) {}
     }
 
     return 0;
