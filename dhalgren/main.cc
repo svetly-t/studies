@@ -6,7 +6,7 @@
 
 static int kScreenWidth = 800;
 static int kScreenHeight = 600;
-static unsigned int kNanosecondsInFrame = 1000000000ull/60ull;
+static unsigned int kMillisecondsPerFrame = 1000/120;
 
 struct Camera {
     V2d pos;
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
     double meters_per_pixel = 0.1;
     auto start_of_frame_clock = std::chrono::high_resolution_clock::now();
     auto end_of_update_clock = std::chrono::high_resolution_clock::now();
-    SDL_TimerID timerID = SDL_AddTimer(16, timerTickCallBack, NULL);
+    SDL_TimerID timerID = SDL_AddTimer(kMillisecondsPerFrame, timerTickCallBack, NULL);
 
     V2d upward = { 0.0, 1.0 };
 
@@ -117,12 +117,12 @@ int main(int argc, char **argv) {
         kid_update_ctx.dt = dt;
         kid_update_ctx.meters_per_pixel = meters_per_pixel;
         KidUpdate(kid, kid_update_ctx);
+        
+        end_of_update_clock = std::chrono::high_resolution_clock::now();
 
         CameraUpdate(camera, kid, ks, mouse_pos, dt);
 
         LevelUpdate(level, ks, mouse_pos, dt);
-
-        end_of_update_clock = std::chrono::high_resolution_clock::now();
 
         KeyStateClearPress(ks);
 
@@ -176,8 +176,6 @@ int main(int argc, char **argv) {
         }
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
-
-        while (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-start_of_frame_clock).count() < kNanosecondsInFrame) {}
     }
 
     return 0;

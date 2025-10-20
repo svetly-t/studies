@@ -30,8 +30,12 @@ void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height
 void SdlStatePollEvents(KeyState &ks, bool &exit) {
     SDL_Event sdl_event;
 
-    if (SDL_WaitEvent(&sdl_event)) {
+    while (SDL_WaitEvent(&sdl_event)) {
         switch (sdl_event.type) {
+            case SDL_USEREVENT:
+                // This is the frame-time event.
+                // If we see this, we need to proceed with the game logic.
+                return;
             case SDL_QUIT:
                 exit = true;
                 break;
