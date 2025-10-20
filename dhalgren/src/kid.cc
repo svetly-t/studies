@@ -79,8 +79,8 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
             w1 = 0;
             w2 = 1.0;
         } else if (i == kSwingPoints - 1) {
-            w1 = 0.99;
-            w2 = 0.01;
+            w1 = 0.95;
+            w2 = 0.05;
         } else {
             w1 = 0.5;
             w2 = 0.5;
@@ -121,6 +121,10 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     Level &level = *(ctx.level);
     double dt = ctx.dt;
 
+    if (ctx.ks->rp != 0) {
+        KidInitialize(kid);
+    }
+
     switch (kid.state) {
         case Kid::STAND:
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
@@ -143,11 +147,12 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.state_timer = 0.0;
             }
             // Change speed
-            if (kid.state_timer < 0.33) {
+            if (kid.state_timer < 0.05) {
                 kid.vel.x = 20.0 * ks.x;
             } else {
                 kid.vel.x = 100.0 * ks.x;
             }
+            
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             if (ks.x == 0) {
@@ -170,7 +175,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.vel.x *= (1.0 - dt);
             kid.charge_timer += dt;
             if (ks.spc == 0) {
-                kid.vel.y = -50.0 * kid.charge_timer;
+                kid.vel.y = -100.0 - 50.0 * kid.charge_timer;
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }

@@ -2,6 +2,8 @@
 #include "include/v2d.h"
 #include "include/kid.h"
 
+#include <chrono>
+
 static int kScreenWidth = 800;
 static int kScreenHeight = 600;
 
@@ -52,12 +54,10 @@ int main(int argc, char **argv) {
     SdlStateInitialize(sdl_state, kScreenWidth, kScreenHeight);
 
     unsigned int frame;
-    unsigned int ticks_start_of_frame;
-    unsigned int ticks_after_update;
-    unsigned int ticks_in_frame;
-    unsigned int ticks_to_next_frame;
     double dt;
     double meters_per_pixel = 0.1;
+    auto start_of_frame_clock = std::chrono::high_resolution_clock::now();
+    auto end_of_update_clock = std::chrono::high_resolution_clock::now();
 
     V2d upward = { 0.0, 1.0 };
 
@@ -79,16 +79,14 @@ int main(int argc, char **argv) {
 
     frame = 0;
 
-    ticks_after_update = SDL_GetTicks();
-
     LevelInitialize(level, kScreenWidth, kScreenHeight);
 
     for (;!exit; ++frame) {
-        ticks_start_of_frame = SDL_GetTicks();
+        start_of_frame_clock = std::chrono::high_resolution_clock::now();
 
         SdlStatePollEvents(ks, exit);
 
-        dt = (double)(SDL_GetTicks() - ticks_after_update) / 1000.0;
+        dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-end_of_update_clock).count() / 1000000.0;
     
         kid_update_ctx.level = &level;
         kid_update_ctx.ks = &ks;
@@ -100,7 +98,7 @@ int main(int argc, char **argv) {
 
         LevelUpdate(level, ks, mouse_pos, dt);
 
-        ticks_after_update = SDL_GetTicks();
+        end_of_update_clock = std::chrono::high_resolution_clock::now();
 
         KeyStateClearPress(ks);
 
@@ -155,15 +153,7 @@ int main(int argc, char **argv) {
 
         SDL_UpdateWindowSurface(sdl_state.sdl_window);
 
-        // How long did the frame take?
-        ticks_in_frame = SDL_GetTicks() - ticks_start_of_frame;
-
-        ticks_to_next_frame = 16 - ticks_in_frame;
-        if (ticks_in_frame > 16)
-            ticks_to_next_frame = 0;
-
-        // sleep
-        // SDL_Delay(ticks_to_next_frame);
+        while (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-start_of_frame_clock).count() < 16666667) {}
     }
 
     return 0;

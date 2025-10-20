@@ -2,6 +2,7 @@
 #include "sdl_state.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 
 bool AABBToPointOverlap(AABB &aabb, V2d final) {
@@ -93,6 +94,8 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
 
 void LevelInitialize(Level &level, int window_x, int window_y) {
     level.state = Level::READY_BOX;
+    level.window_x = window_x;
+    level.window_y= window_y;
 }
 
 void LevelSwitchState(Level &level, Level::State new_state) {
@@ -107,6 +110,42 @@ uint64_t LevelChunkMapIndex(double x, double y) {
     iy = iy - (iy % Chunk::kHeight);
 
     return ((uint64_t)iy << 31) | (uint64_t)ix;
+}
+
+void LevelRandomPopulate(Level &level) {
+    level.aabbs.clear();
+    
+    for (int i = 0; i < 10; ++i) {
+        double x, y, width, height;
+        bool overlap = false;
+
+        x = rand() % level.window_x - level.window_x / 2;
+        y = rand() % level.window_y - level.window_y / 2;
+        width = rand() % 100 + 100;
+        height = rand() % 100 + 100;
+
+        // Make sure that none of the corners overlap with any of the other boxes
+        for (auto &aabb : level.aabbs) {
+            if (AABBToPointOverlap(aabb, { x, y }) ||
+                AABBToPointOverlap(aabb, { x + width, y }) ||
+                AABBToPointOverlap(aabb, { x, y + height }) ||
+                AABBToPointOverlap(aabb, { x + width, y + height })) {
+                overlap = true;
+                break;
+            }
+        }
+
+        if (overlap) {
+            --i;
+            continue;
+        }
+
+        level.aabbs.push_back(AABB{
+            .pos = { x, y },
+            .width = width,
+            .height = height
+        });        
+    }
 }
 
 void LevelSave(Level &level) {
@@ -199,6 +238,9 @@ void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt) {
                 LevelSwitchState(level, Level::ADJUST_BOX);
                 level.aabb.pos = mouse_pos;
                 break;
+            }
+            if (ks.rp != 0) {
+                LevelRandomPopulate(level);
             }
             if (ks.sp != 0) {
                 LevelSave(level);

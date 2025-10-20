@@ -9,6 +9,7 @@ struct KeyState {
     int y = 0;
     int s = 0;
     int l = 0;
+    int r = 0;
     int spc = 0;
     int e = 0;
     int esc = 0;
@@ -17,6 +18,7 @@ struct KeyState {
     int yp = 0;
     int sp = 0;
     int lp = 0;
+    int rp = 0;
     int spcp = 0;
     int ep = 0;
     int escp = 0;

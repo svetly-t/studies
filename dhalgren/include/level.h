@@ -47,6 +47,9 @@ struct Level {
 
     V2d l1, l2;
 
+    int window_x;
+    int window_y;
+
     AABB aabb;
     std::vector<AABB> aabbs;
     std::unordered_map<uint64_t, Chunk> chunk_map;

@@ -60,6 +60,9 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
                     case SDLK_l:
                         if (!ks.l) ks.lp = 1;
                         ks.l = 1;
+                    case SDLK_r:
+                        if (!ks.r) ks.rp = 1;
+                        ks.r = 1;
                         break;
                     case SDLK_e:
                     case SDLK_KP_E:
@@ -101,6 +104,10 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
                     case SDLK_l:
                         ks.l = 0;
                         ks.lp = 0;
+                        break;
+                    case SDLK_r:
+                        ks.r = 0;
+                        ks.rp = 0;
                         break;
                     case SDLK_e:
                     case SDLK_KP_E:
