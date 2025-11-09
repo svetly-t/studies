@@ -131,19 +131,9 @@ int main(int argc, char **argv) {
 
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
-        DrawLine(
-            sdl_state,
-            camera,
-            kid.pos + upward * 4.0, // * (frame % 2),
-            kid.pos - upward * 4.0 // * (frame % 2)
-        );
-
-        DrawLine(
-            sdl_state,
-            camera,
-            kid.pos + rightward * 4.0, // * (frame % 2),
-            kid.pos - rightward * 4.0 // * (frame % 2)
-        );
+        // Drawing the kid star
+        for (int i = 0; i < 4; ++i)
+            DrawLine(sdl_state, camera, kid.pos, kid.star_pos[i]);
 
         // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 

@@ -240,13 +240,24 @@ void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt) {
                 break;
             }
             if (ks.rp != 0) {
-                LevelRandomPopulate(level);
+                LevelSwitchState(level, Level::RANDOM_POPULATE_START);
+                break;
             }
             if (ks.sp != 0) {
                 LevelSave(level);
             }
             if (ks.lp != 0) {
                 LevelLoad(level);
+            }
+            break;
+        case Level::RANDOM_POPULATE_START:
+            LevelRandomPopulate(level);
+            LevelSwitchState(level, Level::RANDOM_POPULATE_DONE);
+            break;
+        case Level::RANDOM_POPULATE_DONE:
+            if (ks.rp == 0) {
+                LevelSwitchState(level, Level::READY_BOX);
+                break;
             }
             break;
         case Level::READY_LINE:

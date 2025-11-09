@@ -1,8 +1,12 @@
+#include <cmath>
+#include <cstdlib>
+
 #include "kid.h"
 
 void KidInitialize(Kid &kid) {
     kid.state = Kid::STAND;
     kid.pos.x = 100;
+    kid.pos.y = 0;
 }
 
 void KidSwitchState(Kid &kid, Kid::State new_state) {
@@ -27,6 +31,7 @@ void KidCollision(
 
     downward.y = 8.0;
     velocity_isct.exists = false;
+    ground_isct.exists = false;
     
     for (auto &aabb: level.aabbs) {
         velocity_isct = AABBToLineIntersect(aabb, pos, pos + vel * dt);
@@ -107,6 +112,31 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
     kid.pos = kid.swing_pos[kSwingPoints - 1];
 }
 
+void KidStarUpdate(Kid &kid, KidUpdateContext ctx) {
+    const double kStarDist = 4.0;
+    const double kConstraintWeight = 0.1;
+    double dt = ctx.dt;
+    V2d upwards = kid.pos + V2d(0, -kStarDist);
+    V2d downwards = kid.pos + V2d(0, kStarDist);
+    V2d leftwards = kid.pos + V2d(-kStarDist, 0);
+    V2d rightwards = kid.pos + V2d(kStarDist, 0);
+    V2d kid_vel_perp = V2d(-kid.vel.y, kid.vel.x);
+
+    for (int i = 0; i < 3; ++i) {
+        singleRopeConstraint(kid.star_pos[0], upwards, kConstraintWeight, 0.0, 0.0);
+        singleRopeConstraint(kid.star_pos[1], downwards, kConstraintWeight, 0.0, 0.0);
+        singleRopeConstraint(kid.star_pos[2], leftwards, kConstraintWeight, 0.0, 0.0);
+        singleRopeConstraint(kid.star_pos[3], rightwards, kConstraintWeight, 0.0, 0.0);
+    }
+    
+    for (int i = 0; i < 4; ++i) {
+        double random_number = 0.0;
+        double random_direction = random_number - (RAND_MAX / 2.0) > 0 ? 1.0 : -1.0;
+        double random_scale = random_number / (double)RAND_MAX;
+        kid.star_pos[i] += -(kid.vel + (kid_vel_perp * random_scale)) * dt;
+    }
+}
+
 struct Weights {
     double w0;
     double w1;
@@ -127,6 +157,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
 
     switch (kid.state) {
         case Kid::STAND:
+            kid.vel.x = 0;
+            kid.vel.y = 0;
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             if (ks.x != 0) {
                 KidSwitchState(kid, Kid::RUN);
@@ -147,12 +179,9 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.state_timer = 0.0;
             }
             // Change speed
-            if (kid.state_timer < 0.05) {
-                kid.vel.x = 20.0 * ks.x;
-            } else {
-                kid.vel.x = 100.0 * ks.x;
-            }
-            
+            kid.vel.x = 100.0 * ks.x / (1.0 + 100.0 * exp(-12.0 * kid.state_timer)) + 40.0 * ks.x;
+            // kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
+
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             if (ks.x == 0) {
@@ -205,15 +234,6 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::SWING:
-            // KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
-            // intended_pos = kid.swing_pos + (kid.pos - kid.swing_pos).Normalized() * kid.swing_dist;
-            // acc = (intended_pos - kid.prev_pos);
-            // acc.y += 80.0;
-            // kid.pos = intended_pos;
-            // current_pos = kid.pos;
-            // kid.pos = current_pos * 2.0 - kid.prev_pos + acc * dt * dt;
-            // kid.vel = (current_pos - kid.prev_pos) / dt;
-            // kid.prev_pos = current_pos;
             KidRopeUpdate(kid, ctx);
             if (ks.spc > 0) {
                 kid.charge_timer += dt;
@@ -225,4 +245,6 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         default:
             break;
     }
+
+    KidStarUpdate(kid, ctx);
 }

@@ -42,6 +42,8 @@ struct Level {
         READY_LINE,
         ADJUST_BOX,
         ADJUST_LINE,
+        RANDOM_POPULATE_START,
+        RANDOM_POPULATE_DONE,
     };
     State state;
 

@@ -25,6 +25,9 @@ struct Kid {
     V2d swing_pos_prev[kSwingPoints];
     double swing_dist;
 
+    V2d star_pos[4];
+    V2d star_pos_prev[4];
+
     V2d prev_pos;
     V2d pos;
     V2d vel;

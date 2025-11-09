@@ -34,7 +34,7 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
         switch (sdl_event.type) {
             case SDL_USEREVENT:
                 // This is the frame-time event.
-                // If we see this, we need to proceed with the game logic.
+                // If we see this, we need to proceed with the game logic, so break out with 'return'
                 return;
             case SDL_QUIT:
                 exit = true;
