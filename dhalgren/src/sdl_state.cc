@@ -88,10 +88,17 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
             case SDL_KEYUP:
                 switch( sdl_event.key.keysym.sym ){
                     case SDLK_LEFT:
+                        if (ks.x == -1) {
+                            ks.x = 0;
+                            ks.xp = 0;
+                            break;
+                        }
                     case SDLK_RIGHT:
-                        ks.x = 0;
-                        ks.xp = 0;
-                        break;
+                        if (ks.x == 1) {
+                            ks.x = 0;
+                            ks.xp = 0;
+                            break;
+                        }
                     case SDLK_UP:
                     case SDLK_DOWN:
                         ks.y = 0;

@@ -9,7 +9,7 @@ const int kSwingPoints = 10;
 struct Kid {
     enum State {
         STAND,
-        START_RUN,
+        CHARGE_RUN,
         RUN,
         CHARGE_JUMP,
         JUMP,
@@ -28,6 +28,8 @@ struct Kid {
     V2d star_pos[4];
     V2d star_pos_prev[4];
 
+    double angle;
+    V2d visual_pos;
     V2d prev_pos;
     V2d pos;
     V2d vel;
@@ -36,6 +38,7 @@ struct Kid {
 struct KidUpdateContext {
     Level *level;
     KeyState *ks;
+    KeyState *ks_prev;
     double meters_per_pixel;
     double dt;
 };

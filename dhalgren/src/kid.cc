@@ -112,28 +112,51 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
     kid.pos = kid.swing_pos[kSwingPoints - 1];
 }
 
-void KidStarUpdate(Kid &kid, KidUpdateContext ctx) {
+void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight, bool drag) {
     const double kStarDist = 4.0;
-    const double kConstraintWeight = 0.1;
     double dt = ctx.dt;
-    V2d upwards = kid.pos + V2d(0, -kStarDist);
-    V2d downwards = kid.pos + V2d(0, kStarDist);
-    V2d leftwards = kid.pos + V2d(-kStarDist, 0);
-    V2d rightwards = kid.pos + V2d(kStarDist, 0);
+    double cos_angle = cos(kid.angle * 2 * 3.14159 / 360.0);
+    double sin_angle = sin(kid.angle * 2 * 3.14159 / 360.0);
+    V2d upwards = kid.visual_pos + V2d(sin_angle, -cos_angle) * kStarDist;
+    V2d downwards = kid.visual_pos - V2d(sin_angle, -cos_angle) * kStarDist;
+    V2d leftwards = kid.visual_pos - V2d(cos_angle, sin_angle) * kStarDist;
+    V2d rightwards = kid.visual_pos + V2d(cos_angle, sin_angle) * kStarDist;
     V2d kid_vel_perp = V2d(-kid.vel.y, kid.vel.x);
 
-    for (int i = 0; i < 3; ++i) {
-        singleRopeConstraint(kid.star_pos[0], upwards, kConstraintWeight, 0.0, 0.0);
-        singleRopeConstraint(kid.star_pos[1], downwards, kConstraintWeight, 0.0, 0.0);
-        singleRopeConstraint(kid.star_pos[2], leftwards, kConstraintWeight, 0.0, 0.0);
-        singleRopeConstraint(kid.star_pos[3], rightwards, kConstraintWeight, 0.0, 0.0);
+    if (drag) {
+        for (int i = 0; i < 3; ++i) {
+            singleRopeConstraint(kid.star_pos[0], upwards, constraint_weight, 0.0, 0.0);
+            singleRopeConstraint(kid.star_pos[1], downwards, constraint_weight, 0.0, 0.0);
+            singleRopeConstraint(kid.star_pos[2], leftwards, constraint_weight, 0.0, 0.0);
+            singleRopeConstraint(kid.star_pos[3], rightwards, constraint_weight, 0.0, 0.0);
+        }
+        
+        for (int i = 0; i < 4; ++i) {
+            double random_number = 0.0;
+            double random_direction = random_number - (RAND_MAX / 2.0) > 0 ? 1.0 : -1.0;
+            double random_scale = random_number / (double)RAND_MAX;
+            kid.star_pos[i] += -(kid.vel + (kid_vel_perp * random_scale)) * dt;
+        }
+    } else {
+        kid.star_pos[0] = upwards;
+        kid.star_pos[1] = downwards;
+        kid.star_pos[2] = leftwards;
+        kid.star_pos[3] = rightwards;
     }
-    
-    for (int i = 0; i < 4; ++i) {
-        double random_number = 0.0;
-        double random_direction = random_number - (RAND_MAX / 2.0) > 0 ? 1.0 : -1.0;
-        double random_scale = random_number / (double)RAND_MAX;
-        kid.star_pos[i] += -(kid.vel + (kid_vel_perp * random_scale)) * dt;
+}
+
+void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
+    const double kBobDist = 2.0;
+    const double kStarDist = 4.0;
+    double bob_period_factor = 3.0 * (1.0 - abs(kid.vel.x) / 280.0);
+    // double bob_period_increase_factor = log(abs(kid.vel.x) + 1.0);
+    V2d downwards = V2d(0, kStarDist);
+    V2d upwards = V2d(0, -kStarDist);
+
+    if (bob) {
+        kid.visual_pos = kid.pos + upwards + downwards * (abs(sin(kid.state_timer * 2 * 3.14159 / (bob_period_factor))));
+    } else {
+        kid.visual_pos = kid.pos + upwards;
     }
 }
 
@@ -148,6 +171,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     double run_speed;
 
     KeyState &ks = *(ctx.ks);
+    KeyState &ks_prev = *(ctx.ks_prev);
     Level &level = *(ctx.level);
     double dt = ctx.dt;
 
@@ -160,8 +184,10 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.vel.x = 0;
             kid.vel.y = 0;
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+            KidVisualUpdate(kid, ctx, false);
+            KidStarUpdate(kid, ctx, 1.0, false);
             if (ks.x != 0) {
-                KidSwitchState(kid, Kid::RUN);
+                KidSwitchState(kid, Kid::CHARGE_RUN);
                 break;
             }
             if (ks.spc > 0) {
@@ -169,25 +195,38 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 break;
             }
             if (!ground_isct.exists) {
+                kid.vel.y += 80.0;
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }
             break;
-        case Kid::RUN:
-            // Reset the state timer when directionality changes
-            if (kid.vel.x * ks.x < 0) {
-                kid.state_timer = 0.0;
-            }
-            // Change speed
-            kid.vel.x = 100.0 * ks.x / (1.0 + 100.0 * exp(-12.0 * kid.state_timer)) + 40.0 * ks.x;
-            // kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
-
-            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+        case Kid::CHARGE_RUN:
+            kid.angle += 800.0 * (kid.state_timer + 1.0) * ks.x * dt;
             kid.pos.x += kid.vel.x * dt;
-            if (ks.x == 0) {
+            if (kid.charge_timer > 0.5) {
+                KidSwitchState(kid, Kid::RUN);
+                break;
+            }
+            if (kid.state_timer > 0.1 && ks.x == 0) {
                 KidSwitchState(kid, Kid::STAND);
                 break;
             }
+            if (ks.x != 0) {
+                kid.charge_timer += dt;
+            }
+            kid.state_timer += dt;
+            break;
+        case Kid::RUN:
+            // Change speed
+            // sigmoid:
+            kid.vel.x = 100.0 * ks.x / (1.0 + 100.0 * exp(-12.0 * kid.state_timer)) + 40.0 * ks.x;
+            // logarithmic:
+            // kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
+            kid.angle += kid.vel.x * 16.0 * dt;
+            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+            kid.pos.x += kid.vel.x * dt;
+            KidStarUpdate(kid, ctx, 1.1, false);
+            KidVisualUpdate(kid, ctx, false);
             if (ks.spc > 0) {
                 KidSwitchState(kid, Kid::CHARGE_JUMP);
                 break;
@@ -199,10 +238,12 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.state_timer += dt;
             break;
         case Kid::CHARGE_JUMP:
+            KidVisualUpdate(kid, ctx, false);
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             kid.vel.x *= (1.0 - dt);
             kid.charge_timer += dt;
+            KidStarUpdate(kid, ctx, 0.4, true);
             if (ks.spc == 0) {
                 kid.vel.y = -100.0 - 50.0 * kid.charge_timer;
                 KidSwitchState(kid, Kid::JUMP);
@@ -214,6 +255,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::JUMP:
+            KidVisualUpdate(kid, ctx, false);
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             if (velocity_isct.exists) {
                 if (velocity_isct.normal.y < 0.0) {
@@ -225,6 +267,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.vel.y += 80.0 * dt;
             kid.prev_pos = kid.pos;
             kid.pos += kid.vel * dt;
+            KidStarUpdate(kid, ctx, 0.4, true);
             if (ks.spc > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
@@ -234,7 +277,9 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::SWING:
+            KidVisualUpdate(kid, ctx, false);
             KidRopeUpdate(kid, ctx);
+            KidStarUpdate(kid, ctx, 0.2, true);
             if (ks.spc > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
@@ -245,6 +290,4 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         default:
             break;
     }
-
-    KidStarUpdate(kid, ctx);
 }

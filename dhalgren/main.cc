@@ -70,6 +70,8 @@ Uint32 timerTickCallBack(Uint32 iIntervalInMilliseconds, void *param) {
 int main(int argc, char **argv) {
     bool exit = false;
 
+    KeyState ks_prev;
+
     KeyState ks;
 
     SdlState sdl_state;
@@ -114,6 +116,7 @@ int main(int argc, char **argv) {
     
         kid_update_ctx.level = &level;
         kid_update_ctx.ks = &ks;
+        kid_update_ctx.ks_prev = &ks_prev;
         kid_update_ctx.dt = dt;
         kid_update_ctx.meters_per_pixel = meters_per_pixel;
         KidUpdate(kid, kid_update_ctx);
@@ -124,6 +127,8 @@ int main(int argc, char **argv) {
 
         LevelUpdate(level, ks, mouse_pos, dt);
 
+        ks_prev = ks;
+
         KeyStateClearPress(ks);
 
         // draw
@@ -133,7 +138,7 @@ int main(int argc, char **argv) {
 
         // Drawing the kid star
         for (int i = 0; i < 4; ++i)
-            DrawLine(sdl_state, camera, kid.pos, kid.star_pos[i]);
+            DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
 
         // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 
