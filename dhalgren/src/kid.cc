@@ -207,9 +207,10 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::CHARGE_RUN:
-            kid.pos.x += kid.vel.x * dt;
+            // kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1, false);
             if (kid.charge_timer > 0.5) {
+                kid.speed = 100.0;
                 KidSwitchState(kid, Kid::RUN);
                 break;
             }
@@ -223,17 +224,20 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.state_timer += dt;
             break;
         case Kid::RUN:
+            if (abs(kid.vel.x) < abs(kid.speed) && kid.speed > 100.0) {
+                kid.speed = abs(kid.vel.x);
+            }
             // Change speed
             // sigmoid:
-            kid.vel.x = 100.0 * signOf(kid.charge_timer) / (1.0 + 100.0 * exp(-12.0 * abs(kid.charge_timer))) + 20.0 * signOf(kid.charge_timer);
+            kid.vel.x = kid.speed * signOf(kid.charge_timer) / (1.0 + 100.0 * exp(-12.0 * abs(kid.charge_timer))) + 20.0 * signOf(kid.charge_timer);
             // logarithmic:
             // kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
-            kid.angle += kid.vel.x * 16.0 * dt;
+            // kid.angle += kid.vel.x * 16.0 * dt;
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1, false);
             KidVisualUpdate(kid, ctx, false);
-            if (ks.spc > 0) {
+            if (ks.spcp == 1) {
                 KidSwitchState(kid, Kid::JUMP);
                 kid.vel.y = -40.0;
                 break;
@@ -244,26 +248,40 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             if (ks.x != 0) {
                 kid.charge_timer += dt * ks.x;
-            } else {
+            } else if (ks.x == 0) {
+                if (abs(kid.vel.x) < 21.0) {
+                    KidSwitchState(kid, Kid::STAND);
+                    break;
+                }
                 kid.charge_timer -= signOf(kid.charge_timer) * dt;
             }
             kid.charge_timer = SDL_clamp(kid.charge_timer, -1.0, 1.0);
             kid.state_timer += dt;
             break;
         case Kid::JUMP:
-            KidVisualUpdate(kid, ctx, false);
             KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
             if (velocity_isct.exists) {
                 if (velocity_isct.normal.y < 0.0) {
                     kid.vel.y = 0.0;
-                    KidSwitchState(kid, Kid::STAND);
+                    KidSwitchState(kid, Kid::RUN);
+                    if (abs(kid.vel.x) > 140.0) {
+                        kid.charge_timer = 1.0 * signOf(kid.vel.x);
+                        kid.speed = kid.vel.x - 40.0 * signOf(kid.vel.x);
+                    } else {
+                        kid.charge_timer = 0.25 * signOf(ks.x);
+                    }
                     break;
                 }
             }
-            kid.vel.y += 80.0 * dt;
+            if (ks.spc > 0 && kid.vel.y < 0) {
+                kid.vel.y += 80.0 * dt;
+            } else {
+                kid.vel.y += 160.0 * dt;
+            }
             kid.prev_pos = kid.pos;
             kid.pos += kid.vel * dt;
             KidStarUpdate(kid, ctx, 0.4, true);
+            KidVisualUpdate(kid, ctx, false);
             if (ks.spcp > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0 && ks.spc > 0) {
