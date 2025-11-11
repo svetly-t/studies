@@ -33,6 +33,7 @@ struct Kid {
     V2d prev_pos;
     V2d pos;
     V2d vel;
+    V2d acc;
 };
 
 struct KidUpdateContext {

@@ -1,5 +1,9 @@
 #include "utilities.h"
 
+double signOf(double d) {
+    return (d > 0) ? 1 : ((d < 0) ? -1 : 0);
+}
+
 double degToRad(double degree) {
     return degree / 180.0 * 3.14159;
 }

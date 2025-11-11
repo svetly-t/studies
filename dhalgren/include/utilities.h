@@ -2,6 +2,8 @@
 
 #include "v2d.h"
 
+double signOf(double d);
+
 double degToRad(double degree);
 
 double determinant2d(double a11, double a12, double a21, double a22);
