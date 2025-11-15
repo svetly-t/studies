@@ -17,6 +17,8 @@ struct AABB {
     double height;
 };
 
+bool AABBToPointOverlap(AABB &aabb, V2d final);
+
 struct LineToLineIntersection {
     bool exists;
     V2d l1;

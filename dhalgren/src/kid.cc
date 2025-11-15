@@ -17,11 +17,11 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
 }
 
 void KidCollision(
+    KidUpdateContext ctx,
     V2d &pos,
     V2d &vel,
     LineToLineIntersection &velocity_isct,
-    LineToLineIntersection &ground_isct,
-    KidUpdateContext ctx
+    LineToLineIntersection &ground_isct
 ) {
     V2d pos_to_isct;
     V2d downward;
@@ -45,6 +45,20 @@ void KidCollision(
         if (!ground_isct.exists)
             ground_isct = AABBToLineIntersect(aabb, pos, pos + downward);
     }
+}
+
+bool KidOverlap(KidUpdateContext ctx, V2d pos) {
+    Level &level = *(ctx.level);
+    double dt = ctx.dt;
+    double meters_per_pixel = ctx.meters_per_pixel;
+    
+    for (auto &aabb: level.aabbs) {
+        if (AABBToPointOverlap(aabb, pos)) {
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 void KidRopeStart(Kid &kid, KidUpdateContext ctx, V2d endpoint) {
@@ -189,7 +203,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         case Kid::STAND:
             kid.vel.x = 0;
             kid.vel.y = 0;
-            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             KidVisualUpdate(kid, ctx, false);
             KidStarUpdate(kid, ctx, 1.0, false);
             if (ks.x != 0) {
@@ -225,7 +239,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             break;
         case Kid::RUN:
             if (abs(kid.vel.x) < abs(kid.speed) && kid.speed > 100.0) {
-                kid.speed = abs(kid.vel.x);
+                kid.speed = std::max(abs(kid.vel.x), 100.0);
             }
             // Change speed
             // sigmoid:
@@ -233,7 +247,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             // logarithmic:
             // kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
             // kid.angle += kid.vel.x * 16.0 * dt;
-            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1, false);
             KidVisualUpdate(kid, ctx, false);
@@ -259,7 +273,18 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.state_timer += dt;
             break;
         case Kid::JUMP:
-            KidCollision(kid.pos, kid.vel, velocity_isct, ground_isct, ctx);
+            // Reduce gravity on the way up if holding spacebar
+            if (ks.spc > 0) {
+                // Only resolve the collision if spacebar is not pressed. If it is, then pass through
+                if (KidOverlap(ctx, kid.pos)) {
+                    kid.vel.y -= 80.0 * dt;
+                } else {
+                    kid.vel.y += 80.0 * dt;
+                }
+            } else {
+                kid.vel.y += 160.0 * dt;
+                KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
+            }
             if (velocity_isct.exists) {
                 if (velocity_isct.normal.y < 0.0) {
                     kid.vel.y = 0.0;
@@ -272,11 +297,6 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                     }
                     break;
                 }
-            }
-            if (ks.spc > 0 && kid.vel.y < 0) {
-                kid.vel.y += 80.0 * dt;
-            } else {
-                kid.vel.y += 160.0 * dt;
             }
             kid.prev_pos = kid.pos;
             kid.pos += kid.vel * dt;
