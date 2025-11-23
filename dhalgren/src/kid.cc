@@ -108,8 +108,8 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
                 w1 = 1.0;
                 w2 = 0.0;
             } else {
-                w1 = 0.95;
-                w2 = 0.05;
+                w1 = 0.925;
+                w2 = 0.075;
             }
         } else {
             w1 = 0.5;
@@ -207,6 +207,11 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     double sigmoid;
     double sigmoid_derivative;
 
+    bool drag;
+
+    const double kFallSpeed = 160.0;
+    const double kDragFactor = 0.00001;
+
     if (ctx.ks->rp != 0) {
         KidInitialize(kid);
     }
@@ -268,6 +273,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             if (ks.spcp == 1) {
                 KidSwitchState(kid, Kid::JUMP);
                 kid.vel.y = -40.0;
+                kid.vel.x += signOf(kid.vel.x) * 20.0;
                 break;
             }
             if (!ground_isct.exists) {
@@ -303,25 +309,28 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             //     kid.vel.y += 160.0 * dt;
             //     KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             // }
-            kid.vel.y += 160.0 * dt;
+            kid.vel.y += kFallSpeed * dt;
+            kid.speed = kid.vel.y;
             KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             if (velocity_isct.exists) {
                 if (velocity_isct.normal.y < 0.0) {
-                    kid.vel.y = 0.0;
-                    KidSwitchState(kid, Kid::RUN);
-                    if (abs(kid.vel.x) > 140.0) {
-                        kid.charge_timer = 1.0 * signOf(kid.vel.x);
-                        kid.speed = kid.vel.x - 40.0 * signOf(kid.vel.x);
+                    if (abs(kid.speed) < 50.0) {
+                        KidSwitchState(kid, Kid::RUN);
+                        if (abs(kid.vel.x) > 140.0) {
+                            kid.charge_timer = 1.0 * signOf(kid.vel.x);
+                            kid.speed = 100.0; // kid.vel.x - 40.0 * signOf(kid.vel.x);
+                        } else {
+                            kid.charge_timer = 0.25 * signOf(ks.x);
+                            kid.speed = 100.0;
+                        }
+                        break;
                     } else {
-                        kid.charge_timer = 0.25 * signOf(ks.x);
+                        kid.vel.y = -40.0;
                     }
-                    break;
                 }
             }
             kid.prev_pos = kid.pos;
             kid.pos += kid.vel * dt;
-            KidStarUpdate(kid, ctx, 0.4, true);
-            KidVisualUpdate(kid, ctx, false);
             if (ks.s == 0 && ks.spcp > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0 && ks.spc > 0) {
@@ -338,6 +347,24 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                     break;
                 }
             }
+            kid.vel.x += -signOf(kid.vel.x) * (kid.vel.x * kid.vel.x) * kDragFactor; 
+            if (ks.x)
+                drag = false;
+            if (ks.spc == 0 && ks.x * kid.vel.x < 0) {
+                kid.vel.x += ks.x * 75.0 * dt;
+                kid.vel.y += kFallSpeed / 2.0 * dt;
+            }
+            if (ks.spc == 0 && ks.x * kid.vel.x > 0) {
+                kid.vel.x += ks.x * 5.0 * dt;
+            }
+            if (ks.y == 1) {
+                drag = true;
+                kid.vel.y += kFallSpeed * dt;
+            }
+            if (kid.vel.y > 300.0)
+                kid.vel.y = 300.0;
+            KidStarUpdate(kid, ctx, 0.4, drag);
+            KidVisualUpdate(kid, ctx, false);
             break;
         case Kid::CHARGE_BOUNCE_SWING:
             KidRopeUpdate(kid, ctx, true);
