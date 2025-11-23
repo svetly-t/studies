@@ -13,6 +13,8 @@ struct Kid {
         RUN,
         CHARGE_JUMP,
         JUMP,
+        CHARGE_BOUNCE,
+        CHARGE_BOUNCE_SWING,
         CHARGE_SHOT,
         SHOT,
         SWING,

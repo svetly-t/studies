@@ -37,6 +37,10 @@ void KidCollision(
     for (auto &aabb: level.aabbs) {
         velocity_isct = AABBToLineIntersect(aabb, pos, pos + vel * dt);
         if (velocity_isct.exists) {
+            // Ignore this collision if the line's normal doesn't point up,
+            // or if we're approaching from underneath the line (i.e. dot(normal, vel) is g.t. zero)
+            if (!(velocity_isct.normal.y < 0.0 && velocity_isct.normal * vel < 0.0))
+                continue;
             pos_to_isct = velocity_isct.intersection_point - pos;
             pos = velocity_isct.intersection_point - pos_to_isct.Normalized() * meters_per_pixel;
             vel = (velocity_isct.projection_point - velocity_isct.intersection_point) / dt;
@@ -85,22 +89,28 @@ void singleRopeConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double dis
     pos2 -= dir * offset * w2;
 }
 
-void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
+void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
     V2d current_pos;
     V2d acc;
 
     double w1, w2;
     double dt = ctx.dt;
     double constraint_dist = kid.swing_dist / (double)(kSwingPoints - 1);
+    int point_count = kSwingPoints;
 
     // Constrain all the rope points
     for (int i = 1; i < kSwingPoints; ++i) {
         if (i == 1) {
-            w1 = 0;
+            w1 = 0.0;
             w2 = 1.0;
         } else if (i == kSwingPoints - 1) {
-            w1 = 0.95;
-            w2 = 0.05;
+            if (kid_is_fixed) {
+                w1 = 1.0;
+                w2 = 0.0;
+            } else {
+                w1 = 0.95;
+                w2 = 0.05;
+            }
         } else {
             w1 = 0.5;
             w2 = 0.5;
@@ -108,9 +118,13 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
         singleRopeConstraint(kid.swing_pos[i - 1], kid.swing_pos[i], w1, w2, constraint_dist);
     }
 
+    // If the kid is fixed, don't do verlet integration on the last point in the array
+    if (kid_is_fixed)
+        point_count = kSwingPoints - 1;
+
     // Do verlet integration using the previous frame's rope points and this frame's
     // See https://www.algorithm-archive.org/contents/verlet_integration/verlet_integration.html
-    for (int i = 1; i < kSwingPoints; ++i) {
+    for (int i = 1; i < point_count; ++i) {
         acc = (kid.swing_pos[i] - kid.swing_pos_prev[i]);
         acc.y += 80.0;
         current_pos = kid.swing_pos[i];
@@ -241,12 +255,12 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             if (abs(kid.vel.x) < abs(kid.speed) && kid.speed > 100.0) {
                 kid.speed = std::max(abs(kid.vel.x), 100.0);
             }
-            // Change speed
+            // Run speed is on a predefined curve because I was chasing determinism
             // sigmoid:
             kid.vel.x = kid.speed * signOf(kid.charge_timer) / (1.0 + 100.0 * exp(-12.0 * abs(kid.charge_timer))) + 20.0 * signOf(kid.charge_timer);
             // logarithmic:
-            // kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
-            // kid.angle += kid.vel.x * 16.0 * dt;
+            //     kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
+            //     kid.angle += kid.vel.x * 16.0 * dt;
             KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1, false);
@@ -274,17 +288,23 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             break;
         case Kid::JUMP:
             // Reduce gravity on the way up if holding spacebar
-            if (ks.spc > 0) {
-                // Only resolve the collision if spacebar is not pressed. If it is, then pass through
-                if (KidOverlap(ctx, kid.pos)) {
-                    kid.vel.y -= 80.0 * dt;
-                } else {
-                    kid.vel.y += 80.0 * dt;
-                }
-            } else {
-                kid.vel.y += 160.0 * dt;
-                KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
-            }
+            // if (ks.spc > 0) {
+            //     // Only resolve the collision if spacebar is not pressed. If it is, then pass through
+            //     if (KidOverlap(ctx, kid.pos)) {
+            //         kid.vel.x += ks.x * 10.0 * dt;
+            //         if (ks.x * kid.vel.x > 0)
+            //             kid.vel.y -= 320.0 * dt;
+            //         else if (ks.x * kid.vel.x < 0)
+            //             kid.vel.y += 320.0 * dt;
+            //     } else {
+            //         kid.vel.y += 80.0 * dt;
+            //     }
+            // } else {
+            //     kid.vel.y += 160.0 * dt;
+            //     KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
+            // }
+            kid.vel.y += 160.0 * dt;
+            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             if (velocity_isct.exists) {
                 if (velocity_isct.normal.y < 0.0) {
                     kid.vel.y = 0.0;
@@ -302,7 +322,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.pos += kid.vel * dt;
             KidStarUpdate(kid, ctx, 0.4, true);
             KidVisualUpdate(kid, ctx, false);
-            if (ks.spcp > 0) {
+            if (ks.s == 0 && ks.spcp > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0 && ks.spc > 0) {
                 kid.charge_timer += dt;
@@ -311,16 +331,56 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 KidSwitchState(kid, Kid::SWING);
                 break;
             }
+            if (ks.y == 1 && ks.spcp > 0) {
+                if (KidOverlap(ctx, kid.pos)) {
+                    kid.speed = kid.vel.Magnitude();
+                    KidSwitchState(kid, Kid::CHARGE_BOUNCE);
+                    break;
+                }
+            }
+            break;
+        case Kid::CHARGE_BOUNCE_SWING:
+            KidRopeUpdate(kid, ctx, true);
+            if (kid.state_timer >= 1.0 && kid.state == Kid::CHARGE_BOUNCE_SWING) {
+                kid.speed += 125.0;
+                kid.vel = V2d(ks.x, ks.y).Normalized() * kid.speed;
+                kid.swing_pos_prev[kSwingPoints - 1] = kid.pos;
+                kid.prev_pos = kid.pos;
+                kid.pos += kid.vel * dt;
+                kid.swing_pos[kSwingPoints - 1] = kid.pos;
+                KidSwitchState(kid, Kid::SWING);
+                break;
+            }
+        case Kid::CHARGE_BOUNCE:
+            if (kid.state_timer >= 1.0 && kid.state == Kid::CHARGE_BOUNCE) {
+                kid.speed += 75.0;
+                kid.vel = V2d(ks.x, ks.y).Normalized() * kid.speed;
+                KidSwitchState(kid, Kid::JUMP);
+                break;
+            }
+            KidVisualUpdate(kid, ctx, false);
+            KidStarUpdate(kid, ctx, 0.2, false);
+            kid.state_timer += dt;
+            // Alternative spin pattern for when we're not holding left or right
+            if (ks.x == 0)
+                kid.angle += (400.0 * signOf(ks.y) + 400.0 * ks.y) * (kid.state_timer + 1.0) * dt;
             break;
         case Kid::SWING:
             KidVisualUpdate(kid, ctx, false);
-            KidRopeUpdate(kid, ctx);
+            KidRopeUpdate(kid, ctx, false);
             KidStarUpdate(kid, ctx, 0.2, true);
-            if (ks.spc > 0) {
+            if (ks.y != 1 && ks.spc > 0) {
                 kid.charge_timer += dt;
             } else if (kid.charge_timer > 0.0) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
+            }
+            if (ks.y == 1 && ks.spc > 0) {
+                if (KidOverlap(ctx, kid.pos)) {
+                    kid.speed = kid.vel.Magnitude();
+                    KidSwitchState(kid, Kid::CHARGE_BOUNCE_SWING);
+                    break;   
+                }
             }
             break;
         default:
