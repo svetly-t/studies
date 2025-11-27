@@ -14,6 +14,7 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
     kid.state = new_state;
     kid.state_timer = 0.0;
     kid.charge_timer = 0.0;
+    kid.charge_started = false;
 }
 
 void KidCollision(
@@ -98,9 +99,17 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
     double w1, w2;
     double gravity;
     double offset;
+    double real_swing_dist;
+    double swing_dist_offset;
     double dt = ctx.dt;
     double constraint_dist = kid.swing_dist / (double)(kSwingPoints - 1);
+    double last_constraint_dist = constraint_dist;
     int point_count = kSwingPoints;
+
+    V2d effective_vel;
+    V2d line_to_center;
+
+    KeyState &ks = *(ctx.ks);
 
     // Constrain all the rope points
     for (int i = 1; i < kSwingPoints; ++i) {
@@ -108,13 +117,8 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
             w1 = 0.0;
             w2 = 1.0;
         } else if (i == kSwingPoints - 1) {
-            if (kid_is_fixed) {
-                w1 = 1.0;
-                w2 = 0.0;
-            } else {
-                w1 = 0.8;
-                w2 = 0.2;
-            }
+            w1 = 0.975;
+            w2 = 0.025;
         } else {
             w1 = 0.5;
             w2 = 0.5;
@@ -122,14 +126,18 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
         offset = singleRopeConstraint(kid.swing_pos[i - 1], kid.swing_pos[i], w1, w2, constraint_dist);
     }
 
-    // If the kid is fixed, don't do verlet integration on the last point in the array
-    if (kid_is_fixed)
-        point_count = kSwingPoints - 1;
+    real_swing_dist = (kid.swing_pos[kSwingPoints - 1] - kid.swing_pos[0]).Magnitude();
 
-    if (offset > 0.0)
+    swing_dist_offset = real_swing_dist - kid.swing_dist;
+
+    // If the kid is fixed, don't do verlet integration on the last point in the array
+    // if (kid_is_fixed)
+    //     point_count = kSwingPoints - 1;
+
+    if (swing_dist_offset > 0.0)
         gravity = 80.0 + abs(kid.vel.Normalized().Cross(V2d(0, 1))) * 160.0;
     else
-        gravity = 80.0;
+        gravity = 160.0;
 
     // Do verlet integration using the previous frame's rope points and this frame's
     // See https://www.algorithm-archive.org/contents/verlet_integration/verlet_integration.html
@@ -137,8 +145,11 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
         acc = (kid.swing_pos[i] - kid.swing_pos_prev[i]);
         if (i != kSwingPoints - 1)
             acc.y += 80.0;
-        else
+        else {
             acc.y += gravity;
+            if (swing_dist_offset > 0.0)
+                acc += V2d(ks.x, ks.y).Normalized() * 10.0;
+        }
         current_pos = kid.swing_pos[i];
         // This is the verlet part: x(t + dt) = 2x        - x(x - dt) + a * dt**2
         //                    i.e.: next_pos  = 2*cur_pos - prev_pos  + acceleration * dt**2
@@ -149,6 +160,10 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
         kid.swing_pos_prev[i] = current_pos;
         kid.prev_pos = current_pos;
     }
+
+    // kid.swing_pos[kSwingPoints - 1] = kid.swing_pos[kSwingPoints - 2];
+
+    // kid.swing_pos[kSwingPoints - 2] = kid.swing_pos[kSwingPoints - 1] + V2d(ks.x, ks.y).Normalized() * last_constraint_dist;
 
     kid.pos = kid.swing_pos[kSwingPoints - 1];
 }
@@ -193,6 +208,8 @@ void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
     // double bob_period_increase_factor = log(abs(kid.vel.x) + 1.0);
     V2d downwards = V2d(0, kStarDist);
     V2d upwards = V2d(0, -kStarDist);
+
+    KeyState &ks = *(ctx.ks);
 
     if (bob) {
         kid.visual_pos = kid.pos + upwards + downwards * (abs(sin(kid.state_timer * 2 * 3.14159 / (bob_period_factor))));
@@ -344,10 +361,11 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.prev_pos = kid.pos;
             kid.pos += kid.vel * dt;
             if (ks.s == 0 && ks.spcp > 0) {
+                kid.charge_started = true;
                 kid.charge_timer += dt;
-            } else if (kid.charge_timer > 0.0 && ks.spc > 0) {
+            } else if (kid.charge_started && ks.spc > 0) {
                 kid.charge_timer += dt;
-            } else if (kid.charge_timer > 0.0) {
+            } else if (kid.charge_started) {
                 KidRopeStart(kid, ctx, kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0));
                 KidSwitchState(kid, Kid::SWING);
                 break;
@@ -359,12 +377,13 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                     break;
                 }
             }
-            kid.vel.x += -signOf(kid.vel.x) * (kid.vel.x * kid.vel.x) * kDragFactor; 
+            kid.vel.x += -signOf(kid.vel.x) * (kid.vel.x * kid.vel.x) * kDragFactor;
             if (ks.x)
                 drag = false;
             if (ks.spc == 0 && ks.x * kid.vel.x < 0) {
                 kid.vel.x += ks.x * 75.0 * dt;
                 kid.vel.y += kFallSpeed / 2.0 * dt;
+                kid.charge_timer += dt;
             }
             if (ks.spc == 0 && ks.x * kid.vel.x > 0) {
                 kid.vel.x += ks.x * 5.0 * dt;
@@ -407,10 +426,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         case Kid::SWING:
             KidVisualUpdate(kid, ctx, false);
             KidRopeUpdate(kid, ctx, false);
-            KidStarUpdate(kid, ctx, 0.2, true);
-            if (ks.y != 1 && ks.spc > 0) {
-                kid.charge_timer += dt;
-            } else if (kid.charge_timer > 0.0) {
+            KidStarUpdate(kid, ctx, 0.2, false);
+            if (ks.y != 1 && ks_prev.spcp == 1) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }
@@ -421,6 +438,10 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                     break;   
                 }
             }
+            if (ks.x || ks.y)
+                kid.charge_timer += dt;
+            else
+                kid.charge_timer = 0;
             break;
         default:
             break;

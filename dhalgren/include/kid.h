@@ -22,6 +22,8 @@ struct Kid {
     State state;
     double state_timer;
     double charge_timer;
+    double charge_timer_2;
+    bool charge_started;
 
     double speed;
 
