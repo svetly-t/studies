@@ -10,6 +10,10 @@ static unsigned int kMillisecondsPerFrame = 1000/120;
 
 struct Camera {
     V2d pos;
+    // As zoom gets lower, the size of drawn elements scales linearly.
+    // So a 100x100 box at 1.0 zoom becomes a 50x50 box at 0.5 times zoom.
+    // Similarly, distances from origin should be scaled as well.
+    double zoom = 1.0;
 };
 
 void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double dt) {
@@ -17,20 +21,27 @@ void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double
     V2d transform_screen = { (double)kScreenWidth / 2, (double)kScreenHeight / 2 };
     V2d ks_mp = { (double)ks.mx, (double)ks.my };
 
+    if (ks.z) {
+        camera.zoom += (0.5 - camera.zoom) * dt * 4.0;
+    } else {
+        camera.zoom += (1.0 - camera.zoom) * dt * 4.0;
+    }
+
     camera.pos += (kid.pos - camera.pos) * dt;
     origin = camera.pos - transform_screen;
 
     mouse_pos = origin + ks_mp;
 }
 
+// The width and height are the box size in pixels at zoom = 1.0.
 void DrawBoxAtV2d(SdlState &sdl_state, Camera &camera, V2d pos, int width, int height) {
     V2d transformed_pos;
     SDL_Rect sdl_rect;
-    transformed_pos = pos - camera.pos;
+    transformed_pos = (pos - camera.pos) * camera.zoom;
     sdl_rect.x = transformed_pos.x + kScreenWidth / 2;
     sdl_rect.y = transformed_pos.y + kScreenHeight / 2;
-    sdl_rect.w = width;
-    sdl_rect.h = height;
+    sdl_rect.w = width * camera.zoom;
+    sdl_rect.h = height * camera.zoom;
     SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect);
 }
 
@@ -40,12 +51,12 @@ void DrawAABB(SdlState &sdl_state, Camera &camera, AABB aabb) {
 
 void DrawLine(SdlState &sdl_state, Camera &camera, V2d p1, V2d p2) {
     V2d transform_screen = { (double)kScreenWidth / 2, (double)kScreenHeight / 2 };
-    p1 = p1 - camera.pos + transform_screen;
-    p2 = p2 - camera.pos + transform_screen;
+    p1 = (p1 - camera.pos) * camera.zoom + transform_screen;
+    p2 = (p2 - camera.pos) * camera.zoom + transform_screen;
     SDL_RenderDrawLine(sdl_state.sdl_renderer, p1.x, p1.y, p2.x, p2.y);
 }
 
-// https://discourse.libsdl.org/t/poor-performance-of-sdl2-on-macos/28276/3
+// Use this to fix frametimes: https://discourse.libsdl.org/t/poor-performance-of-sdl2-on-macos/28276/3
 Uint32 timerTickCallBack(Uint32 iIntervalInMilliseconds, void *param) {
     SDL_Event event;
     SDL_UserEvent userevent;
@@ -139,6 +150,8 @@ int main(int argc, char **argv) {
         // Drawing the kid star
         for (int i = 0; i < 4; ++i)
             DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
+        
+        DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height);
 
         // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
 

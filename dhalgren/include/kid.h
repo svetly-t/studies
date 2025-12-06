@@ -27,6 +27,7 @@ struct Kid {
 
     double speed;
 
+    AABB swing_reticle;
     V2d swing_pos[kSwingPoints];
     V2d swing_pos_prev[kSwingPoints];
     double swing_dist;

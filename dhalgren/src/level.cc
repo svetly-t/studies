@@ -14,6 +14,26 @@ bool AABBToPointOverlap(AABB &aabb, V2d final) {
     return false;
 }
 
+bool AABBToAABBOverlap(AABB target, AABB reticle, V2d &overlap) {
+    if (AABBToPointOverlap(reticle, target.pos)) {
+        overlap = target.pos;
+        return true;
+    }
+    if (AABBToPointOverlap(reticle, target.pos + V2d(target.width, 0))) {
+        overlap = target.pos + V2d(target.width, 0);
+        return true;
+    }
+    if (AABBToPointOverlap(reticle, target.pos + V2d(target.width, target.height))) {
+        overlap = target.pos + V2d(target.width, target.height);
+        return true;
+    }
+    if (AABBToPointOverlap(reticle, target.pos + V2d(0, target.height))) {
+        overlap = target.pos + V2d(0, target.height);
+        return true;
+    }
+    return false;
+}
+
 V2d LineToLineProjectionPoint(V2d l1, V2d l2, V2d i1, V2d i2) {
     V2d tangent = (l2 - l1).Normalized();
     return l1 + tangent * ((i2 - l1) * tangent);
@@ -100,16 +120,6 @@ void LevelInitialize(Level &level, int window_x, int window_y) {
 
 void LevelSwitchState(Level &level, Level::State new_state) {
     level.state = new_state;
-}
-
-uint64_t LevelChunkMapIndex(double x, double y) {
-    int ix = (int)x;
-    int iy = (int)y;
-
-    ix = ix - (ix % Chunk::kWidth);
-    iy = iy - (iy % Chunk::kHeight);
-
-    return ((uint64_t)iy << 31) | (uint64_t)ix;
 }
 
 void LevelRandomPopulate(Level &level) {

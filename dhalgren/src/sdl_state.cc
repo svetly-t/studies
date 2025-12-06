@@ -73,6 +73,10 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
                         if (!ks.e) ks.ep = 1;
                         ks.e = 1;
                         break;
+                    case SDLK_z:
+                        if (!ks.z) ks.zp = 1;
+                        ks.z = 1;
+                        break;
                     case SDLK_SPACE:
                         if (!ks.spc) ks.spcp = 1;
                         ks.spc = 1;
@@ -125,6 +129,10 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
                         ks.e = 0;
                         ks.ep = 0;
                         break;
+                    case SDLK_z:
+                        ks.z = 0;
+                        ks.zp = 0;
+                        break;
                     case SDLK_ESCAPE:
                         ks.esc = 0;
                         ks.escp = 0;
@@ -173,6 +181,7 @@ void KeyStateClearPress(KeyState &ks) {
     ks.xp = 0;
     ks.yp = 0;
     ks.ep = 0;
+    ks.zp = 0;
     ks.sp = 0;
     ks.lp = 0;
     ks.spcp = 0;

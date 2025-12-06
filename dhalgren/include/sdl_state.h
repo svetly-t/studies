@@ -12,6 +12,7 @@ struct KeyState {
     int r = 0;
     int spc = 0;
     int e = 0;
+    int z = 0;
     int esc = 0;
     // pressed
     int xp = 0;
@@ -21,6 +22,7 @@ struct KeyState {
     int rp = 0;
     int spcp = 0;
     int ep = 0;
+    int zp = 0;
     int escp = 0;
     // mouse position relative to window
     int mx;

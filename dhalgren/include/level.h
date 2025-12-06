@@ -19,6 +19,8 @@ struct AABB {
 
 bool AABBToPointOverlap(AABB &aabb, V2d final);
 
+bool AABBToAABBOverlap(AABB target, AABB sweep, V2d &overlap);
+
 struct LineToLineIntersection {
     bool exists;
     V2d l1;

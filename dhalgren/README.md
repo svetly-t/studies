@@ -19,7 +19,7 @@ source ~/.bashrc
 
 Download SDL2 as a package within msys2: https://packages.msys2.org/packages/mingw-w64-x86_64-SDL2
 ```
-pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_image
+pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_image mingw-w64-x86_64-SDL2_ttf
 ```
 
 To build and run:

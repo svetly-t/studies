@@ -66,6 +66,22 @@ bool KidOverlap(KidUpdateContext ctx, V2d pos) {
     return false;
 }
 
+V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx) {
+    V2d anchor;
+    
+    KeyState &ks = *(ctx.ks);
+    Level &level = *(ctx.level);
+
+    kid.swing_reticle.width = kid.swing_reticle.height = 200.0;
+    kid.swing_reticle.pos = kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0) - V2d(kid.swing_reticle.width / 2.0, kid.swing_reticle.height / 2.0);
+
+    for (auto &aabb: level.aabbs)
+        if (AABBToAABBOverlap(aabb, kid.swing_reticle, anchor))
+            return anchor;
+
+    return kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0);
+}
+
 void KidRopeStart(Kid &kid, KidUpdateContext ctx, V2d endpoint) {
     kid.swing_pos[0] = endpoint;
     kid.swing_dist = (endpoint - kid.pos).Magnitude();
@@ -365,8 +381,9 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.charge_timer += dt;
             } else if (kid.charge_started && ks.spc > 0) {
                 kid.charge_timer += dt;
+                KidRopeFindAnchor(kid, ctx);
             } else if (kid.charge_started) {
-                KidRopeStart(kid, ctx, kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0));
+                KidRopeStart(kid, ctx, KidRopeFindAnchor(kid, ctx)); // kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0));
                 KidSwitchState(kid, Kid::SWING);
                 break;
             }
