@@ -1,5 +1,6 @@
 #include "level.h"
 #include "sdl_state.h"
+#include "utilities.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -112,6 +113,142 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
     return AABBToLineIntersect(aabb, l.p1, l.p2);
 }
 
+void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player) {
+    V2d pos;
+    double dist;
+    double total_dist;
+    int last_point_idx;
+
+    int rope_point_idx = rs.rope_point_idx;
+    RopePoint *rope_points = rs.rope_points;
+
+    if (holding_player) {
+        rope_point_idx = kRopePoints;
+    } else if (rope_point_idx + num_points >= kRopePoints) {
+        return;
+    }
+
+    total_dist = (p2 - p1).Magnitude();
+
+    dist = total_dist / (num_points - 1);
+
+    last_point_idx = num_points - 1;
+
+    for (int i = 0; i <= last_point_idx; ++i) {
+        pos = p1 + (p2 - p1).Normalized() * dist * i;
+        rope_points[rope_point_idx + i].pos = pos;
+        rope_points[rope_point_idx + i].pos_prev = pos;
+        rope_points[rope_point_idx + i].neighbor_idx = -1;
+        rope_points[rope_point_idx + i].neighbor_dist = dist;
+        rope_points[rope_point_idx + i].active = true;
+        rope_points[rope_point_idx + i].fixed = false;
+        rope_points[rope_point_idx + i].holding_player = holding_player;
+        if (i > 0) {
+            rope_points[rope_point_idx + i].neighbor_idx = rope_point_idx + i - 1;
+        }
+    }
+
+    rope_points[rope_point_idx].fixed = true;
+
+    if (!holding_player)
+        rope_points[rope_point_idx + last_point_idx].fixed = true;
+
+    if (!holding_player)
+        rs.rope_point_idx += num_points;
+}
+
+void RopeAdd(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player) {
+    return;
+}
+
+void RopeStateInitialize(RopeState &rs) {
+    RopePoint *rope_points = rs.rope_points;
+
+    rs.rope_point_idx = 0;
+
+    for (int i = 0; i < kRopePointsTotal; ++i) {
+        rope_points[i].fixed = false;
+        rope_points[i].active = false;
+        rope_points[i].holding_player = false;
+        rope_points[i].neighbor_idx = -1;
+    }
+}
+
+void RopeStateUpdate(RopeState &rs, double dt) {
+    V2d current_pos;
+    V2d acc;
+
+    int neighbor_idx;
+    double w1, w2;
+    double gravity;
+    double real_swing_dist;
+    double swing_dist_offset;
+    double neighbor_dist;
+
+    int &rope_point_idx = rs.rope_point_idx;
+    RopePoint *rope_points = rs.rope_points;
+
+    // Constrain all the rope points
+    for (int i = 0; i < kRopePointsTotal; ++i) {
+        if (!rope_points[i].active)
+            continue;
+
+        if (rope_points[i].neighbor_idx == -1)
+            continue;
+        
+        neighbor_idx = rope_points[i].neighbor_idx;
+        neighbor_dist = rope_points[i].neighbor_dist;
+
+        if (rope_points[neighbor_idx].fixed) {
+            w1 = 0.0;
+            w2 = 1.0;
+        } else if (rope_points[i].holding_player) {
+            w1 = 0.975;
+            w2 = 0.025;
+        } else {
+            w1 = 0.5;
+            w2 = 0.5;
+        }
+        if (rope_points[i].fixed) {
+            w2 = 0.0;
+        }
+        singleRopeConstraint(rope_points[neighbor_idx].pos, rope_points[i].pos, w1, w2, neighbor_dist);
+    }
+
+    gravity = 80.0;
+
+    // Do verlet integration using the previous frame's rope points and this frame's
+    // See https://www.algorithm-archive.org/contents/verlet_integration/verlet_integration.html
+    for (int i = 0; i < kRopePointsTotal; ++i) {
+        if (!rope_points[i].active)
+            continue;
+
+        if (rope_points[i].fixed)
+            continue;
+
+        acc = (rope_points[i].pos - rope_points[i].pos_prev);
+
+        if (rope_points[i].holding_player) {
+            acc.y += rs.kid_gravity;
+            acc += rs.kid_acc;
+        } else {
+            acc.y += gravity;
+        }
+
+        current_pos = rope_points[i].pos;
+        // This is the verlet part: x(t + dt) = 2x        - x(x - dt) + a * dt**2
+        //                    i.e.: next_pos  = 2*cur_pos - prev_pos  + acceleration * dt**2
+        rope_points[i].pos = current_pos * 2.0 - rope_points[i].pos_prev + acc * dt * dt;
+        // Sometimes we have dt is 0.0; in that case the kid's vel goes to infinity 
+        if (dt > 0.0) {
+            if (rope_points[i].holding_player) {
+                rs.kid_vel = (current_pos - rope_points[i].pos_prev) / dt;
+            }
+        }
+        rope_points[i].pos_prev = current_pos;
+    }
+}
+
 void LevelInitialize(Level &level, int window_x, int window_y) {
     level.state = Level::READY_BOX;
     level.window_x = window_x;
@@ -122,7 +259,7 @@ void LevelSwitchState(Level &level, Level::State new_state) {
     level.state = new_state;
 }
 
-void LevelRandomPopulate(Level &level) {
+void LevelRandomPopulate(Level &level, RopeState &rs) {
     level.aabbs.clear();
     
     for (int i = 0; i < 10; ++i) {
@@ -154,7 +291,11 @@ void LevelRandomPopulate(Level &level) {
             .pos = { x, y },
             .width = width,
             .height = height
-        });        
+        });
+
+        if (rand() % 4 == 0 && i > 1) {
+            RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, kRopeLength, false);
+        }
     }
 }
 
@@ -232,7 +373,7 @@ bool LevelRemoveBox(Level &level, V2d mouse_pos) {
     return false;
 }
 
-void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt) {
+void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d &mouse_pos, double dt) {
     bool removed_box = false;
     switch (level.state) {
         case Level::READY_BOX:
@@ -261,7 +402,8 @@ void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt) {
             }
             break;
         case Level::RANDOM_POPULATE_START:
-            LevelRandomPopulate(level);
+            RopeStateInitialize(rs);
+            LevelRandomPopulate(level, rs);
             LevelSwitchState(level, Level::RANDOM_POPULATE_DONE);
             break;
         case Level::RANDOM_POPULATE_DONE:

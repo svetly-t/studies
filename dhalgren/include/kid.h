@@ -47,6 +47,7 @@ struct KidUpdateContext {
     Level *level;
     KeyState *ks;
     KeyState *ks_prev;
+    RopeState *rs;
     double meters_per_pixel;
     double dt;
 };

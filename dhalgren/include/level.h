@@ -17,6 +17,41 @@ struct AABB {
     double height;
 };
 
+struct RopePoint {
+    V2d pos;
+    V2d pos_prev;
+    int neighbor_idx;
+    double neighbor_dist;
+    bool fixed;
+    bool holding_player;
+    bool active;
+};
+
+const int kRopeLength = 10;
+const int kRopePoints = kRopeLength * 10;
+const int kRopePointsTotal = 128;
+
+struct RopeState {
+    int rope_point_idx;
+    RopePoint rope_points[kRopePointsTotal];
+
+    // These get passed from the KidUpdate to the RopeUpdate
+    // depending on length of rope + KeyState
+    double kid_gravity;
+    V2d kid_acc;
+    // This is passed from the RopeState back to the kid;
+    // it is the mid-integration velocity of the point holding the kid
+    V2d kid_vel;
+};
+
+void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player);
+
+void RopeAdd(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player);
+
+void RopeStateInitialize(RopeState &rope_state);
+
+void RopeStateUpdate(RopeState &rope_state, double dt);
+
 bool AABBToPointOverlap(AABB &aabb, V2d final);
 
 bool AABBToAABBOverlap(AABB target, AABB sweep, V2d &overlap);
@@ -67,4 +102,4 @@ void LevelChunkMapUpdate(AABB aabb, int aabb_index);
 
 void LevelInitialize(Level &level, int window_x, int window_y);
 
-void LevelUpdate(Level &level, KeyState &ks, V2d &mouse_pos, double dt);
+void LevelUpdate(Level &level, RopeState& rs, KeyState &ks, V2d &mouse_pos, double dt);

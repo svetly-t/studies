@@ -6,7 +6,7 @@
 
 static int kScreenWidth = 800;
 static int kScreenHeight = 600;
-static unsigned int kMillisecondsPerFrame = 1000/120;
+static unsigned int kMillisecondsPerFrame = 1000/300;
 
 struct Camera {
     V2d pos;
@@ -27,7 +27,7 @@ void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double
         camera.zoom += (1.0 - camera.zoom) * dt * 4.0;
     }
 
-    camera.pos += (kid.pos - camera.pos) * dt;
+    camera.pos += (kid.pos - camera.pos) * dt * 2.0;
     origin = camera.pos - transform_screen;
 
     mouse_pos = origin + ks_mp;
@@ -118,6 +118,10 @@ int main(int argc, char **argv) {
 
     LevelInitialize(level, kScreenWidth, kScreenHeight);
 
+    RopeState rs;
+
+    RopeStateInitialize(rs);
+
     for (;!exit; ++frame) {
         start_of_frame_clock = std::chrono::high_resolution_clock::now();
 
@@ -127,6 +131,7 @@ int main(int argc, char **argv) {
     
         kid_update_ctx.level = &level;
         kid_update_ctx.ks = &ks;
+        kid_update_ctx.rs = &rs;
         kid_update_ctx.ks_prev = &ks_prev;
         kid_update_ctx.dt = dt;
         kid_update_ctx.meters_per_pixel = meters_per_pixel;
@@ -136,7 +141,9 @@ int main(int argc, char **argv) {
 
         CameraUpdate(camera, kid, ks, mouse_pos, dt);
 
-        LevelUpdate(level, ks, mouse_pos, dt);
+        LevelUpdate(level, rs, ks, mouse_pos, dt);
+
+        RopeStateUpdate(rs, dt);
 
         ks_prev = ks;
 
@@ -153,12 +160,21 @@ int main(int argc, char **argv) {
         
         DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height);
 
-        // DrawBoxAtV2d(sdl_state, camera, kid.pos, 16, 16);
-
+        // Drawing the kid rope
         for (int i = 0; i < kSwingPoints - 1; ++i) {
             DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[i], 2, 2);
             DrawLine(sdl_state, camera, kid.swing_pos[i], kid.swing_pos[i + 1]);
-        } 
+        }
+
+        // Drawing the level ropes
+        for (int i = 0; i < kRopePointsTotal; ++i) {
+            if (!rs.rope_points[i].active)
+                continue;
+            DrawBoxAtV2d(sdl_state, camera, rs.rope_points[i].pos, 2, 2);
+            if (rs.rope_points[i].neighbor_idx == -1)
+                continue;
+            DrawLine(sdl_state, camera, rs.rope_points[rs.rope_points[i].neighbor_idx].pos, rs.rope_points[i].pos);
+        }
 
         DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);
 

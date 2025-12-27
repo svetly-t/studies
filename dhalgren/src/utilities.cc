@@ -94,3 +94,20 @@ void findIntersection(V2d p1, V2d p2, V2d p3, double &a, double &b, double &c) {
 double findPolynomialScale(double zero_1, double zero_2, V2d through_this_point) {
     return through_this_point.y / (through_this_point.x - zero_1) / (through_this_point.x - zero_2); 
 }
+
+double singleRopeConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double dist) {
+    V2d real = pos2 - pos1;
+
+    V2d dir = real.Normalized();
+
+    double real_dist = real.Magnitude();
+
+    double offset = real_dist - dist;
+
+    // move pos1 towards pos2 by weight 1
+    pos1 += dir * offset * w1;
+
+    pos2 -= dir * offset * w2;
+
+    return offset;
+}
