@@ -113,7 +113,7 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
     return AABBToLineIntersect(aabb, l.p1, l.p2);
 }
 
-void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player) {
+void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
     V2d pos;
     double dist;
     double total_dist;
@@ -142,16 +142,22 @@ void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player)
         rope_points[rope_point_idx + i].neighbor_dist = dist;
         rope_points[rope_point_idx + i].active = true;
         rope_points[rope_point_idx + i].fixed = false;
-        rope_points[rope_point_idx + i].holding_player = holding_player;
+        rope_points[rope_point_idx + i].holding_player = false;
         if (i > 0) {
             rope_points[rope_point_idx + i].neighbor_idx = rope_point_idx + i - 1;
         }
     }
 
-    rope_points[rope_point_idx].fixed = true;
-
-    if (!holding_player)
+    if (!holding_player) {
+        rope_points[rope_point_idx].fixed = true;
         rope_points[rope_point_idx + last_point_idx].fixed = true;
+    }
+
+    if (holding_player) {
+        rope_points[rope_point_idx].holding_player = true;
+        rope_points[rope_point_idx + last_point_idx].fixed = true;
+        rope_points[rope_point_idx].pos_prev = holding_player_pos_prev;
+    }
 
     if (!holding_player)
         rs.rope_point_idx += num_points;
@@ -202,9 +208,9 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         if (rope_points[neighbor_idx].fixed) {
             w1 = 0.0;
             w2 = 1.0;
-        } else if (rope_points[i].holding_player) {
-            w1 = 0.975;
-            w2 = 0.025;
+        } else if (rope_points[neighbor_idx].holding_player) {
+            w1 = 0.025;
+            w2 = 0.975;
         } else {
             w1 = 0.5;
             w2 = 0.5;
@@ -294,7 +300,7 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
         });
 
         if (rand() % 4 == 0 && i > 1) {
-            RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, kRopeLength, false);
+            RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, kRopeLength, false, {0, 0});
         }
     }
 }

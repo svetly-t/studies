@@ -105,10 +105,10 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
     RopeState &rs = *(ctx.rs);
 
     rs.kid_gravity = 80.0 + abs(kid.vel.Normalized().Cross(V2d(0, 1))) * 160.0;
-    rs.kid_acc += V2d(ks.x, ks.y).Normalized() * 10.0;
+    rs.kid_acc = V2d(ks.x, ks.y).Normalized() * 10.0;
     kid.vel = rs.kid_vel;
-    kid.prev_pos = rs.rope_points[kRopePoints + (kRopeLength - 1)].pos_prev;
-    kid.pos = rs.rope_points[kRopePoints + (kRopeLength - 1)].pos;
+    kid.prev_pos = rs.rope_points[kRopePoints].pos_prev;
+    kid.pos = rs.rope_points[kRopePoints].pos;
 }
 
 // void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
@@ -387,7 +387,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.charge_timer += dt;
                 KidRopeFindAnchor(kid, ctx);
             } else if (kid.charge_started) {
-                RopeAdd(rs, KidRopeFindAnchor(kid, ctx), kid.pos, kRopeLength, true);
+                RopeAdd(rs, KidRopeFindAnchor(kid, ctx), kid.pos, kRopeLength, true, kid.prev_pos);
                 // KidRopeStart(kid, ctx, KidRopeFindAnchor(kid, ctx)); // kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0));
                 KidSwitchState(kid, Kid::SWING);
                 break;
