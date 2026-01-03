@@ -1,12 +1,13 @@
 #include "include/sdl_state.h"
 #include "include/v2d.h"
 #include "include/kid.h"
+#include "include/recording.h"
 
 #include <chrono>
 
 static int kScreenWidth = 800;
 static int kScreenHeight = 600;
-static unsigned int kMillisecondsPerFrame = 1000/300;
+static unsigned int kMillisecondsPerFrame = 1000/60;
 
 struct Camera {
     V2d pos;
@@ -102,6 +103,8 @@ int main(int argc, char **argv) {
 
     // ---
 
+    Recording recording;
+
     Level level;
 
     Kid kid;
@@ -128,7 +131,7 @@ int main(int argc, char **argv) {
         SdlStatePollEvents(ks, exit);
 
         dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-end_of_update_clock).count() / 1000000.0;
-    
+
         kid_update_ctx.level = &level;
         kid_update_ctx.ks = &ks;
         kid_update_ctx.rs = &rs;
@@ -157,8 +160,17 @@ int main(int argc, char **argv) {
         // Drawing the kid star
         for (int i = 0; i < 4; ++i)
             DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
-        
-        DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height);
+
+        // Drawing the aiming reticle
+        if (kid.state == Kid::JUMP &&
+            kid.charge_started &&
+            kid.charge_timer > 0.0) {
+            SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 100, 100, 255);
+            DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height);
+            DrawLine(sdl_state, camera, kid.swing_anchor - V2d(8.0, 0.0), kid.swing_anchor + V2d(8.0, 0.0));
+            DrawLine(sdl_state, camera, kid.swing_anchor - V2d(0.0, 8.0), kid.swing_anchor + V2d(0.0, 8.0));
+            SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
+        }
 
         // Drawing the kid rope
         for (int i = 0; i < kSwingPoints - 1; ++i) {

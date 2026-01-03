@@ -15,6 +15,7 @@ bool AABBToPointOverlap(AABB &aabb, V2d final) {
     return false;
 }
 
+// This isn't really AABB-to-AABB; if reticle is entirely within the target it fails
 bool AABBToAABBOverlap(AABB target, AABB reticle, V2d &overlap) {
     if (AABBToPointOverlap(reticle, target.pos)) {
         overlap = target.pos;
@@ -256,9 +257,9 @@ void RopeStateUpdate(RopeState &rs, double dt) {
 }
 
 void LevelInitialize(Level &level, int window_x, int window_y) {
-    level.state = Level::READY_BOX;
+    level.state = Level::RANDOM_POPULATE_START;
     level.window_x = window_x;
-    level.window_y= window_y;
+    level.window_y = window_y;
 }
 
 void LevelSwitchState(Level &level, Level::State new_state) {
@@ -266,10 +267,26 @@ void LevelSwitchState(Level &level, Level::State new_state) {
 }
 
 void LevelRandomPopulate(Level &level, RopeState &rs) {
+    double x, y, width, height;
+
     level.aabbs.clear();
+    level.aabb.height = 0;
+    level.aabb.width = 0;
     
-    for (int i = 0; i < 10; ++i) {
-        double x, y, width, height;
+    // Always place a box directly beneath origin
+    x = -(rand() % 40) - level.window_x / 2;
+    y = rand() % level.window_y - level.window_y / 2;
+    width = 100.0;
+    height = (rand() % 100 + 100);
+    level.aabbs.push_back(AABB{
+        .pos = { x, y },
+        .width = width,
+        .height = height
+    });
+
+    for (int i = 1; i < 10; ++i) {
+        AABB test;
+        V2d test_overlap;
         bool overlap = false;
 
         x = rand() % level.window_x - level.window_x / 2;
@@ -277,12 +294,17 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
         width = rand() % 100 + 100;
         height = rand() % 100 + 100;
 
+        test = AABB{
+            .pos = { x, y },
+            .width = width,
+            .height = height
+        };
+
         // Make sure that none of the corners overlap with any of the other boxes
+        // This doesn't totally prevent overlap
         for (auto &aabb : level.aabbs) {
-            if (AABBToPointOverlap(aabb, { x, y }) ||
-                AABBToPointOverlap(aabb, { x + width, y }) ||
-                AABBToPointOverlap(aabb, { x, y + height }) ||
-                AABBToPointOverlap(aabb, { x + width, y + height })) {
+            if (AABBToAABBOverlap(aabb, test, test_overlap) ||
+                AABBToAABBOverlap(test, aabb, test_overlap)) {
                 overlap = true;
                 break;
             }
@@ -383,10 +405,10 @@ void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d &mouse_pos, doub
     bool removed_box = false;
     switch (level.state) {
         case Level::READY_BOX:
-            if (ks.ep != 0) {
-                LevelSwitchState(level, Level::READY_LINE);
-                break;
-            }
+            // if (ks.ep != 0) {
+            //     LevelSwitchState(level, Level::READY_LINE);
+            //     break;
+            // }
             if (ks.mrcp != 0) {
                 if (LevelRemoveBox(level, mouse_pos))
                     break;
