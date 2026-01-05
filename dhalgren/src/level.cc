@@ -273,11 +273,11 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
     level.aabb.height = 0;
     level.aabb.width = 0;
     
-    // Always place a box directly beneath origin
-    x = -(rand() % 40) - level.window_x / 2;
-    y = rand() % level.window_y - level.window_y / 2;
+    // Always place a box directly beneath origin so that the player has something to fall on
+    x = -50;
+    y = 100;
     width = 100.0;
-    height = (rand() % 100 + 100);
+    height = 100.0;
     level.aabbs.push_back(AABB{
         .pos = { x, y },
         .width = width,

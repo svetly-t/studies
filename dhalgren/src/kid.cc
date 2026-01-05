@@ -6,7 +6,7 @@
 
 void KidInitialize(Kid &kid) {
     kid.state = Kid::STAND;
-    kid.pos.x = 100;
+    kid.pos.x = 0;
     kid.pos.y = 0;
 }
 
