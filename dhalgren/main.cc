@@ -79,140 +79,143 @@ Uint32 timerTickCallBack(Uint32 iIntervalInMilliseconds, void *param) {
     return iIntervalInMilliseconds;
 }
 
-int main(int argc, char **argv) {
-    bool exit = false;
-
+struct Game {
     KeyState ks_prev;
-
     KeyState ks;
-
     SdlState sdl_state;
-
-    SdlStateInitialize(sdl_state, kScreenWidth, kScreenHeight);
-
-    unsigned int frame;
-    double dt;
-    double meters_per_pixel = 0.1;
-    auto start_of_frame_clock = std::chrono::high_resolution_clock::now();
-    auto end_of_update_clock = std::chrono::high_resolution_clock::now();
-    SDL_TimerID timerID = SDL_AddTimer(kMillisecondsPerFrame, timerTickCallBack, NULL);
-
-    V2d upward = { 0.0, 1.0 };
-
-    V2d rightward = { 1.0, 0.0 };
-
-    // ---
-
-    Recording recording;
-
     Level level;
-
     Kid kid;
-
-    KidInitialize(kid);
-
     KidUpdateContext kid_update_ctx;
-
     Camera camera;
-
-    V2d mouse_pos;
-
-    frame = 0;
-
-    LevelInitialize(level, kScreenWidth, kScreenHeight);
-
     RopeState rs;
 
-    RopeStateInitialize(rs);
+    std::chrono::_V2::system_clock::time_point end_of_update_clock;
+};
 
-    for (;!exit; ++frame) {
-        start_of_frame_clock = std::chrono::high_resolution_clock::now();
+void demo(Game *game) {
+    double dt;
+    bool cancel = false;
+    double meters_per_pixel = 0.1;
+    KidUpdateContext kid_update_ctx;
+    V2d mouse_pos;
 
-        SdlStatePollEvents(ks, exit);
+    KeyState &ks_prev = game->ks_prev;
+    KeyState &ks = game->ks;
+    SdlState &sdl_state = game->sdl_state;
+    auto &end_of_update_clock = game->end_of_update_clock; 
+    Level &level = game->level;
+    Kid &kid = game->kid;
+    Camera &camera = game->camera;
+    RopeState &rs = game->rs;
 
-        dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-end_of_update_clock).count() / 1000000.0;
+    SdlStatePollEvents(ks, cancel);
 
-        kid_update_ctx.level = &level;
-        kid_update_ctx.ks = &ks;
-        kid_update_ctx.rs = &rs;
-        kid_update_ctx.ks_prev = &ks_prev;
-        kid_update_ctx.dt = dt;
-        kid_update_ctx.meters_per_pixel = meters_per_pixel;
-        KidUpdate(kid, kid_update_ctx);
-        
-        end_of_update_clock = std::chrono::high_resolution_clock::now();
-
-        CameraUpdate(camera, kid, ks, mouse_pos, dt);
-
-        LevelUpdate(level, rs, ks, mouse_pos, dt);
-
-        RopeStateUpdate(rs, dt);
-
-        ks_prev = ks;
-
-        KeyStateClearPress(ks);
-
-        // draw
-        SDL_FillRect(sdl_state.sdl_surface, NULL, SDL_MapRGB(sdl_state.sdl_surface->format, 0, 0, 0));
-
-        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
-
-        // Drawing the kid star
-        for (int i = 0; i < 4; ++i)
-            DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
-
-        // Drawing the aiming reticle
-        if (kid.state == Kid::JUMP &&
-            kid.charge_started &&
-            kid.charge_timer > 0.0) {
-            SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 100, 100, 255);
-            DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height);
-            DrawLine(sdl_state, camera, kid.swing_anchor - V2d(8.0, 0.0), kid.swing_anchor + V2d(8.0, 0.0));
-            DrawLine(sdl_state, camera, kid.swing_anchor - V2d(0.0, 8.0), kid.swing_anchor + V2d(0.0, 8.0));
-            SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
-        }
-
-        // Drawing the kid rope
-        for (int i = 0; i < kSwingPoints - 1; ++i) {
-            DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[i], 2, 2);
-            DrawLine(sdl_state, camera, kid.swing_pos[i], kid.swing_pos[i + 1]);
-        }
-
-        // Drawing the level ropes
-        for (int i = 0; i < kRopePointsTotal; ++i) {
-            if (!rs.rope_points[i].active)
-                continue;
-            DrawBoxAtV2d(sdl_state, camera, rs.rope_points[i].pos, 2, 2);
-            if (rs.rope_points[i].neighbor_idx == -1)
-                continue;
-            DrawLine(sdl_state, camera, rs.rope_points[rs.rope_points[i].neighbor_idx].pos, rs.rope_points[i].pos);
-        }
-
-        DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);
-
-        DrawAABB(sdl_state, camera, level.aabb);
-
-        for (auto &aabb : level.aabbs) {
-            DrawAABB(sdl_state, camera, aabb);
-        }
-
-        // Draw level test line
-        DrawLine(sdl_state, camera, level.l1, level.l2);
-
-        // Draw kid velocity line
-        DrawLine(sdl_state, camera, kid.pos, kid.pos + kid.vel);
-
-        LineToLineIntersection isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
-        if (isct.exists) {
-            // Draw level test line
-            SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
-            DrawBoxAtV2d(sdl_state, camera, isct.intersection_point, 4, 4);
-            DrawBoxAtV2d(sdl_state, camera, isct.projection_point, 4, 4);
-            DrawLine(sdl_state, camera, isct.projection_point, isct.projection_point + isct.normal * 8.0);
-        }
-
-        SDL_UpdateWindowSurface(sdl_state.sdl_window);
+    if (cancel) {
+        #ifdef __EMSCRIPTEN__
+        emscripten_cancel_main_loop();  /* this should "kill" the app. */
+        #else
+        exit(0);
+        #endif
     }
 
-    return 0;
+    dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-end_of_update_clock).count() / 1000000.0;
+
+    kid_update_ctx.level = &level;
+    kid_update_ctx.ks = &ks;
+    kid_update_ctx.rs = &rs;
+    kid_update_ctx.ks_prev = &ks_prev;
+    kid_update_ctx.dt = dt;
+    kid_update_ctx.meters_per_pixel = meters_per_pixel;
+    KidUpdate(kid, kid_update_ctx);
+    
+    end_of_update_clock = std::chrono::high_resolution_clock::now();
+
+    CameraUpdate(camera, kid, ks, mouse_pos, dt);
+
+    LevelUpdate(level, rs, ks, mouse_pos, dt);
+
+    RopeStateUpdate(rs, dt);
+
+    ks_prev = ks;
+
+    KeyStateClearPress(ks);
+
+    // draw
+    SDL_FillRect(sdl_state.sdl_surface, NULL, SDL_MapRGB(sdl_state.sdl_surface->format, 0, 0, 0));
+
+    SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
+
+    // Drawing the kid star
+    for (int i = 0; i < 4; ++i)
+        DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
+
+    // Drawing the aiming reticle
+    if (kid.state == Kid::JUMP &&
+        kid.charge_started &&
+        kid.charge_timer > 0.0) {
+        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 100, 100, 255);
+        DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height);
+        DrawLine(sdl_state, camera, kid.swing_anchor - V2d(8.0, 0.0), kid.swing_anchor + V2d(8.0, 0.0));
+        DrawLine(sdl_state, camera, kid.swing_anchor - V2d(0.0, 8.0), kid.swing_anchor + V2d(0.0, 8.0));
+        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
+    }
+
+    // Drawing the kid rope
+    for (int i = 0; i < kSwingPoints - 1; ++i) {
+        DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[i], 2, 2);
+        DrawLine(sdl_state, camera, kid.swing_pos[i], kid.swing_pos[i + 1]);
+    }
+
+    // Drawing the level ropes
+    for (int i = 0; i < kRopePointsTotal; ++i) {
+        if (!rs.rope_points[i].active)
+            continue;
+        DrawBoxAtV2d(sdl_state, camera, rs.rope_points[i].pos, 2, 2);
+        if (rs.rope_points[i].neighbor_idx == -1)
+            continue;
+        DrawLine(sdl_state, camera, rs.rope_points[rs.rope_points[i].neighbor_idx].pos, rs.rope_points[i].pos);
+    }
+
+    DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);
+
+    DrawAABB(sdl_state, camera, level.aabb);
+
+    for (auto &aabb : level.aabbs) {
+        DrawAABB(sdl_state, camera, aabb);
+    }
+
+    // Draw level test line
+    DrawLine(sdl_state, camera, level.l1, level.l2);
+
+    // Draw kid velocity line
+    DrawLine(sdl_state, camera, kid.pos, kid.pos + kid.vel);
+
+    LineToLineIntersection isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
+    if (isct.exists) {
+        // Draw level test line
+        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
+        DrawBoxAtV2d(sdl_state, camera, isct.intersection_point, 4, 4);
+        DrawBoxAtV2d(sdl_state, camera, isct.projection_point, 4, 4);
+        DrawLine(sdl_state, camera, isct.projection_point, isct.projection_point + isct.normal * 8.0);
+    }
+
+    SDL_UpdateWindowSurface(sdl_state.sdl_window);
+}
+
+int main(int argc, char **argv) {
+    Game game;
+    game.end_of_update_clock = std::chrono::high_resolution_clock::now();
+
+    SDL_AddTimer(kMillisecondsPerFrame, timerTickCallBack, NULL);
+
+    SdlStateInitialize(game.sdl_state, kScreenWidth, kScreenHeight);
+    KidInitialize(game.kid);
+    LevelInitialize(game.level, kScreenWidth, kScreenHeight);
+    RopeStateInitialize(game.rs);
+
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(demo, 0, 1);
+    #else
+    while (1) { demo(&game); }
+    #endif
 }
