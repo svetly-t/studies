@@ -1,6 +1,10 @@
 #include "sdl_state.h"
 
+#ifdef __EMSCRIPTEN__
+#include <SDL_hints.h>
+#else
 #include <SDL2/SDL_hints.h>
+#endif
 
 void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height) {
     SDL_Init(SDL_INIT_EVERYTHING);
@@ -30,7 +34,12 @@ void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height
 void SdlStatePollEvents(KeyState &ks, bool &exit) {
     SDL_Event sdl_event;
 
-    while (SDL_WaitEvent(&sdl_event)) {
+#ifdef __EMSCRIPTEN__
+    while (SDL_PollEvent(&sdl_event))
+#else
+    while (SDL_WaitEvent(&sdl_event))
+#endif
+    {
         switch (sdl_event.type) {
             case SDL_USEREVENT:
                 // This is the frame-time event.

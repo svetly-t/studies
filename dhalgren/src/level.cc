@@ -321,8 +321,8 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
             .height = height
         });
 
-        if (rand() % 4 == 0 && i > 1) {
-            RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, kRopeLength, false, {0, 0});
+        if (rand() % 6 == 0 && i > 1) {
+            RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 3, false, {0, 0});
         }
     }
 }

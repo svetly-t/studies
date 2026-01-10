@@ -5,6 +5,10 @@
 
 #include <chrono>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 static int kScreenWidth = 800;
 static int kScreenHeight = 600;
 static unsigned int kMillisecondsPerFrame = 1000/60;
@@ -89,15 +93,16 @@ struct Game {
     Camera camera;
     RopeState rs;
 
-    std::chrono::_V2::system_clock::time_point end_of_update_clock;
+    std::chrono::steady_clock::time_point end_of_update_clock;
 };
 
-void demo(Game *game) {
+void demo(void *vgame) {
     double dt;
     bool cancel = false;
     double meters_per_pixel = 0.1;
     KidUpdateContext kid_update_ctx;
     V2d mouse_pos;
+    Game *game = (Game*)vgame;
 
     KeyState &ks_prev = game->ks_prev;
     KeyState &ks = game->ks;
@@ -118,7 +123,7 @@ void demo(Game *game) {
         #endif
     }
 
-    dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-end_of_update_clock).count() / 1000000.0;
+    dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-end_of_update_clock).count() / 1000000.0;
 
     kid_update_ctx.level = &level;
     kid_update_ctx.ks = &ks;
@@ -128,7 +133,7 @@ void demo(Game *game) {
     kid_update_ctx.meters_per_pixel = meters_per_pixel;
     KidUpdate(kid, kid_update_ctx);
     
-    end_of_update_clock = std::chrono::high_resolution_clock::now();
+    end_of_update_clock = std::chrono::steady_clock::now();
 
     CameraUpdate(camera, kid, ks, mouse_pos, dt);
 
@@ -204,9 +209,12 @@ void demo(Game *game) {
 
 int main(int argc, char **argv) {
     Game game;
-    game.end_of_update_clock = std::chrono::high_resolution_clock::now();
+    game.end_of_update_clock = std::chrono::steady_clock::now();
 
+    #ifdef __EMSCRIPTEN__
+    #else
     SDL_AddTimer(kMillisecondsPerFrame, timerTickCallBack, NULL);
+    #endif
 
     SdlStateInitialize(game.sdl_state, kScreenWidth, kScreenHeight);
     KidInitialize(game.kid);
@@ -214,8 +222,8 @@ int main(int argc, char **argv) {
     RopeStateInitialize(game.rs);
 
     #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop(demo, 0, 1);
+    emscripten_set_main_loop_arg(demo, (void*)&game, 60, 1);
     #else
-    while (1) { demo(&game); }
+    while (1) { demo((void*)&game); }
     #endif
 }

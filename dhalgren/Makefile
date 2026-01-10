@@ -1,44 +1,82 @@
 ## Thanks GPT and this StackOverflow:
 ## https://stackoverflow.com/questions/30573481/how-to-write-a-makefile-with-separate-source-and-header-directories
 
-# Compiler and flags
-CXX := g++ -g
-CXXFLAGS := -Iinclude -std=c++17
-LDFLAGS := -L/usr/local/lib
+# =====================
+# Compilers
+# =====================
+CXX := g++
+EMXX := emcc
+
+# =====================
+# Common flags
+# =====================
+CXXFLAGS := -Iinclude -std=c++17 -g
+LDFLAGS :=
 LDLIBS := -lSDL2main -lSDL2 -lSDL2_image
+
+# =====================
+# Windows flags
+# =====================
+WIN_CXXFLAGS := -I/mingw64/include
+WIN_LDFLAGS := -L/mingw64/lib
 WIN_LDLIBS := -lmingw32 $(LDLIBS)
 
+# =====================
+# Emscripten flags
+# =====================
+EMCXXFLAGS := -Iinclude -std=c++17 \
+              -sUSE_SDL=2 \
+			  -sUSE_SDL_IMAGE=2 \
+              -sALLOW_MEMORY_GROWTH=1
+EMLDFLAGS :=
+EMTARGET := kid.html
+
+# =====================
 # Files and directories
+# =====================
 SRC_DIR := src
 OBJ_DIR := obj
-INCLUDE_DIR := include
+EM_OBJ_DIR := obj-em
 SRCS := main.cc $(wildcard $(SRC_DIR)/*.cc)
-SRCS_TEST := test.cc $(SRC_DIR)/utilities.cc
 OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
-OBJS_TEST := $(SRCS_TEST:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
+EM_OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(EM_OBJ_DIR)/%.o)
 TARGET := kid
 
-# Default target
+# =====================
+# Targets
+# =====================
 all: $(TARGET)
 
-# Create the target
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-test: $(OBJS_TEST)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-# Compile source files into object files
+# Native objects
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc
 	mkdir -p $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Clean up build artifacts
-clean:
-	rm -rf $(OBJ_DIR) $(TARGET)
+# ---------------------
+# Windows build
+# ---------------------
+win: CXXFLAGS += $(WIN_CXXFLAGS)
+win: LDFLAGS  += $(WIN_LDFLAGS)
+win: LDLIBS   := $(WIN_LDLIBS)
+win: clean $(TARGET)
 
-# Windows-specific build
-win: CXXFLAGS += -I/mingw64/include
-win: LDFLAGS += -L/mingw64/lib
-win: LDLIBS = $(WIN_LDLIBS)
-win: $(TARGET)
+# ---------------------
+# Emscripten build
+# ---------------------
+web: $(EMTARGET)
+
+$(EMTARGET): $(EM_OBJS)
+	$(EMXX) $(EMCXXFLAGS) $(EMLDFLAGS) -o $@ $^
+
+$(EM_OBJ_DIR)/%.o: $(SRC_DIR)/%.cc
+	mkdir -p $(EM_OBJ_DIR)
+	$(EMXX) $(EMCXXFLAGS) -c $< -o $@
+
+# =====================
+# Cleanup
+# =====================
+clean:
+	rm -rf $(OBJ_DIR) $(EM_OBJ_DIR) $(TARGET) $(EMTARGET)
