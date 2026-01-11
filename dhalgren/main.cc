@@ -1,7 +1,7 @@
 #include "include/sdl_state.h"
 #include "include/v2d.h"
 #include "include/kid.h"
-#include "include/recording.h"
+#include "include/title.h"
 
 #include <chrono>
 
@@ -84,6 +84,12 @@ Uint32 timerTickCallBack(Uint32 iIntervalInMilliseconds, void *param) {
 }
 
 struct Game {
+    enum State {
+        TITLE,
+        DEMO
+    };
+    State state;
+
     KeyState ks_prev;
     KeyState ks;
     SdlState sdl_state;
@@ -92,9 +98,78 @@ struct Game {
     KidUpdateContext kid_update_ctx;
     Camera camera;
     RopeState rs;
+    Title title;
+    SDL_Surface *title_sprite_surface = IMG_Load("./img/title.png");
+    SDL_Texture *title_sprite_texture = SDL_CreateTextureFromSurface(sdl_state.sdl_renderer, title_sprite_surface);
+    int title_sprite_size = 500;
 
     std::chrono::steady_clock::time_point end_of_update_clock;
 };
+
+void GameSpritesInitialize(Game &game) {
+    game.title_sprite_surface = IMG_Load("./img/title.png");
+    game.title_sprite_texture = SDL_CreateTextureFromSurface(game.sdl_state.sdl_renderer, game.title_sprite_surface);
+    game.title_sprite_size = 500;
+}
+
+void title(void *vgame) {
+    double dt;
+    bool cancel = false;
+    SDL_Rect src;
+    SDL_Rect dst;
+    Game *game = (Game*)vgame;
+    
+    Title &title = game->title;
+    KeyState &ks = game->ks;
+    SdlState &sdl_state = game->sdl_state;
+    auto &end_of_update_clock = game->end_of_update_clock; 
+
+    SdlStatePollEvents(ks, cancel);
+
+    if (cancel) {
+        #ifdef __EMSCRIPTEN__
+        emscripten_cancel_main_loop();  /* this should "kill" the app. */
+        #else
+        exit(0);
+        #endif
+    }
+
+    dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-end_of_update_clock).count() / 1000000.0;
+
+    TitleUpdate(title, ks, dt);
+
+    end_of_update_clock = std::chrono::steady_clock::now();
+
+    KeyStateClearPress(ks);
+
+    if (title.state == Title::SELECTED) {
+        if (title.state_timer > 1.0) {
+            game->state = Game::DEMO;
+            return;
+        }
+    }
+
+    // draw
+    SDL_FillRect(sdl_state.sdl_surface, NULL, SDL_MapRGB(sdl_state.sdl_surface->format, 0, 0, 0));
+
+    SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
+
+    src.y = 0;
+    src.x = 0;
+    src.w = game->title_sprite_size;
+    src.h = game->title_sprite_size;
+
+    dst.x = kScreenWidth / 2 - game->title_sprite_size / 2;
+    dst.y = kScreenHeight / 2 - game->title_sprite_size / 2; 
+    dst.w = game->title_sprite_size;
+    dst.h = game->title_sprite_size;
+
+    if (title.state == Title::NOTHING || std::fmod(title.state_timer, 0.2) > 0.1) {
+        SDL_RenderCopyEx(sdl_state.sdl_renderer, game->title_sprite_texture, &src, &dst, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
+    }
+
+    SDL_UpdateWindowSurface(sdl_state.sdl_window);
+}
 
 void demo(void *vgame) {
     double dt;
@@ -207,9 +282,23 @@ void demo(void *vgame) {
     SDL_UpdateWindowSurface(sdl_state.sdl_window);
 }
 
+void gameloop(void *vgame) {
+    Game *game = (Game*)vgame;
+    switch (game->state) {
+        case Game::TITLE:
+            title(vgame);
+            break;
+        case Game::DEMO:
+            demo(vgame);
+            break;
+    }
+}
+
 int main(int argc, char **argv) {
     Game game;
+    game.state = Game::TITLE;
     game.end_of_update_clock = std::chrono::steady_clock::now();
+    GameSpritesInitialize(game);
 
     #ifdef __EMSCRIPTEN__
     #else
@@ -220,10 +309,11 @@ int main(int argc, char **argv) {
     KidInitialize(game.kid);
     LevelInitialize(game.level, kScreenWidth, kScreenHeight);
     RopeStateInitialize(game.rs);
+    TitleInitialize(game.title);
 
     #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop_arg(demo, (void*)&game, 0, 1);
+    emscripten_set_main_loop_arg(gameloop, (void*)&game, 0, 1);
     #else
-    while (1) { demo((void*)&game); }
+    while (1) { gameloop((void*)&game); }
     #endif
 }
