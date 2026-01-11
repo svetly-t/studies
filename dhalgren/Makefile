@@ -27,7 +27,8 @@ WIN_LDLIBS := -lmingw32 $(LDLIBS)
 EMCXXFLAGS := -Iinclude -std=c++17 \
               -sUSE_SDL=2 \
 			  -sUSE_SDL_IMAGE=2 \
-              -sALLOW_MEMORY_GROWTH=1
+              -sALLOW_MEMORY_GROWTH=1 \
+			  -O3
 EMLDFLAGS :=
 EMTARGET := kid.html
 

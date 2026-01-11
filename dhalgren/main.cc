@@ -132,14 +132,14 @@ void demo(void *vgame) {
     kid_update_ctx.dt = dt;
     kid_update_ctx.meters_per_pixel = meters_per_pixel;
     KidUpdate(kid, kid_update_ctx);
-    
-    end_of_update_clock = std::chrono::steady_clock::now();
 
     CameraUpdate(camera, kid, ks, mouse_pos, dt);
 
     LevelUpdate(level, rs, ks, mouse_pos, dt);
 
     RopeStateUpdate(rs, dt);
+
+    end_of_update_clock = std::chrono::steady_clock::now();
 
     ks_prev = ks;
 
@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
     RopeStateInitialize(game.rs);
 
     #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop_arg(demo, (void*)&game, 60, 1);
+    emscripten_set_main_loop_arg(demo, (void*)&game, 0, 1);
     #else
     while (1) { demo((void*)&game); }
     #endif
