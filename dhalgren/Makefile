@@ -28,7 +28,7 @@ EMCXXFLAGS := -Iinclude -std=c++17 \
               -sUSE_SDL=2 \
 			  -sUSE_SDL_IMAGE=2 \
               -sALLOW_MEMORY_GROWTH=1 \
-			  -O3
+			  -O3 --embed-file=./img/title.png
 EMLDFLAGS :=
 EMTARGET := kid.html
 

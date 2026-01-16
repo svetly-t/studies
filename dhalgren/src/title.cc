@@ -3,6 +3,7 @@
 
 void TitleSwitchState(Title &title, Title::State new_state) {
     title.state = new_state;
+    title.state_timer = 0.0;
 }
 
 void TitleInitialize(Title &title) {
@@ -16,7 +17,8 @@ void TitleUpdate(Title &title, KeyState &ks, double dt) {
             if (ks.spcp) {
                 TitleSwitchState(title, Title::SELECTED);
                 break;
-            } 
+            }
+            title.state_timer += dt;
             break;
         case Title::SELECTED:
             title.state_timer += dt;

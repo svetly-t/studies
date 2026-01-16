@@ -4,6 +4,7 @@
 #include "include/title.h"
 
 #include <chrono>
+#include <iostream>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -99,26 +100,33 @@ struct Game {
     Camera camera;
     RopeState rs;
     Title title;
-    SDL_Surface *title_sprite_surface = IMG_Load("./img/title.png");
-    SDL_Texture *title_sprite_texture = SDL_CreateTextureFromSurface(sdl_state.sdl_renderer, title_sprite_surface);
-    int title_sprite_size = 500;
+    SDL_Surface *title_sprite_surface;
+    SDL_Texture *title_sprite_texture;
+    int title_sprite_size;
 
     std::chrono::steady_clock::time_point end_of_update_clock;
 };
 
 void GameSpritesInitialize(Game &game) {
     game.title_sprite_surface = IMG_Load("./img/title.png");
+    if (game.title_sprite_surface == nullptr) {
+        abort();
+    }
     game.title_sprite_texture = SDL_CreateTextureFromSurface(game.sdl_state.sdl_renderer, game.title_sprite_surface);
+    if (game.title_sprite_texture == nullptr) {
+        std::cout << SDL_GetError() << std::endl;
+        abort();
+    }
     game.title_sprite_size = 500;
 }
 
 void title(void *vgame) {
-    double dt;
-    bool cancel = false;
     SDL_Rect src;
     SDL_Rect dst;
-    Game *game = (Game*)vgame;
-    
+    double dt;
+    bool cancel = false;
+
+    Game *game = (Game*)vgame;    
     Title &title = game->title;
     KeyState &ks = game->ks;
     SdlState &sdl_state = game->sdl_state;
@@ -154,17 +162,20 @@ void title(void *vgame) {
 
     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
-    src.y = 0;
     src.x = 0;
+    src.y = 0;
     src.w = game->title_sprite_size;
     src.h = game->title_sprite_size;
 
     dst.x = kScreenWidth / 2 - game->title_sprite_size / 2;
-    dst.y = kScreenHeight / 2 - game->title_sprite_size / 2; 
+    dst.y = kScreenHeight / 2 - game->title_sprite_size / 2;
+    if (title.state == Title::NOTHING) {
+        dst.y += 10 * sin(title.state_timer * 1 * 3.14159);
+    }
     dst.w = game->title_sprite_size;
     dst.h = game->title_sprite_size;
 
-    if (title.state == Title::NOTHING || std::fmod(title.state_timer, 0.2) > 0.1) {
+    if (title.state == Title::NOTHING || std::fmod(title.state_timer, 0.1) > 0.05) {
         SDL_RenderCopyEx(sdl_state.sdl_renderer, game->title_sprite_texture, &src, &dst, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
     }
 
@@ -298,14 +309,15 @@ int main(int argc, char **argv) {
     Game game;
     game.state = Game::TITLE;
     game.end_of_update_clock = std::chrono::steady_clock::now();
-    GameSpritesInitialize(game);
 
     #ifdef __EMSCRIPTEN__
+    // Emscripten handles the frame timing by itself
     #else
     SDL_AddTimer(kMillisecondsPerFrame, timerTickCallBack, NULL);
     #endif
 
     SdlStateInitialize(game.sdl_state, kScreenWidth, kScreenHeight);
+    GameSpritesInitialize(game);
     KidInitialize(game.kid);
     LevelInitialize(game.level, kScreenWidth, kScreenHeight);
     RopeStateInitialize(game.rs);
