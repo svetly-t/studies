@@ -30,7 +30,8 @@ EMCXXFLAGS := -Iinclude -std=c++17 \
               -sALLOW_MEMORY_GROWTH=1 \
 			  -sASSERTIONS \
 			  -s SDL2_IMAGE_FORMATS='["png"]' \
-			  -O3 --embed-file=./img/title.png@/img/title.png
+			  -O3 --embed-file=./img/title.png@/img/title.png \
+			  --shell-file emcc-shell.html
 EMLDFLAGS :=
 EMTARGET := kid.html
 
