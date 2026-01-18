@@ -110,6 +110,7 @@ struct Game {
 void GameSpritesInitialize(Game &game) {
     game.title_sprite_surface = IMG_Load("./img/title.png");
     if (game.title_sprite_surface == nullptr) {
+        std::cout << "Failed to load title_sprite_surface" << std::endl;
         abort();
     }
     game.title_sprite_texture = SDL_CreateTextureFromSurface(game.sdl_state.sdl_renderer, game.title_sprite_surface);
