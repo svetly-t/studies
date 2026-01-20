@@ -33,7 +33,8 @@ EMCXXFLAGS := -Iinclude -std=c++17 \
 			  -O3 --embed-file=./img/title.png@/img/title.png \
 			  --shell-file emcc-shell.html
 EMLDFLAGS :=
-EMTARGET := kid.html
+EMTARGET := index.html
+EMBUILDDIR := webbuild
 
 # =====================
 # Files and directories
@@ -78,6 +79,16 @@ $(EMTARGET): $(EM_OBJS)
 $(EM_OBJ_DIR)/%.o: $(SRC_DIR)/%.cc
 	mkdir -p $(EM_OBJ_DIR)
 	$(EMXX) $(EMCXXFLAGS) -c $< -o $@
+
+#
+# Emscripten packaging
+#
+
+webzip: web
+	rm -rf $(EMBUILDDIR)
+	mkdir $(EMBUILDDIR)
+	mv index.html index.js index.wasm $(EMBUILDDIR)
+	zip -r $(EMBUILDDIR).zip $(EMBUILDDIR)
 
 # =====================
 # Cleanup

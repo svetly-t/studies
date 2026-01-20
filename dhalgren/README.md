@@ -19,7 +19,7 @@ source ~/.bashrc
 
 Download SDL2 as a package within msys2: https://packages.msys2.org/packages/mingw-w64-x86_64-SDL2
 ```
-pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_image mingw-w64-x86_64-SDL2_ttf
+pacman -S zip mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_image mingw-w64-x86_64-SDL2_ttf
 ```
 
 To build and run:
@@ -56,3 +56,24 @@ For intellisense support, your `.vscode/c_cpp_properties.json` should look somet
 ## Steps for mac
 
 It's been too long, but I think you just need to `brew install sdl2 sdl2_image sdl2_ttf`?
+
+## emscripten install
+
+Try this on WSL2, for Ubuntu 24.04. Couldn't get this working on msys:
+
+```
+sudo apt update
+sudo apt install -y git cmake python3
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk
+./emsdk install latest
+./emsdk activate latest
+source ./emsdk_env.sh
+```
+
+Separately:
+
+```
+sudo apt update
+sudo apt install zip
+```
