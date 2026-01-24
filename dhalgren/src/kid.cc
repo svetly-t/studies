@@ -415,18 +415,6 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             KidStarUpdate(kid, ctx, 0.4, drag);
             KidVisualUpdate(kid, ctx, false);
             break;
-        case Kid::CHARGE_BOUNCE_SWING:
-            KidRopeUpdate(kid, ctx);
-            if (kid.state_timer >= 1.0 && kid.state == Kid::CHARGE_BOUNCE_SWING) {
-                kid.speed += 125.0;
-                kid.vel = V2d(ks.x, ks.y).Normalized() * kid.speed;
-                kid.swing_pos_prev[kSwingPoints - 1] = kid.pos;
-                kid.prev_pos = kid.pos;
-                kid.pos += kid.vel * dt;
-                kid.swing_pos[kSwingPoints - 1] = kid.pos;
-                KidSwitchState(kid, Kid::SWING);
-                break;
-            }
         case Kid::CHARGE_BOUNCE:
             if (kid.state_timer >= 1.0 && kid.state == Kid::CHARGE_BOUNCE) {
                 kid.speed += 75.0;
@@ -448,13 +436,6 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             if (ks.y != 1 && ks_prev.spcp == 1) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
-            }
-            if (ks.y == 1 && ks.spc > 0) {
-                if (KidOverlap(ctx, kid.pos)) {
-                    kid.speed = kid.vel.Magnitude();
-                    KidSwitchState(kid, Kid::CHARGE_BOUNCE_SWING);
-                    break;   
-                }
             }
             if (ks.x || ks.y)
                 kid.charge_timer += dt;

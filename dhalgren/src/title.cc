@@ -13,6 +13,16 @@ void TitleInitialize(Title &title) {
 
 void TitleUpdate(Title &title, KeyState &ks, double dt) {
     switch (title.state) {
+        case Title::HIDDEN:
+            if (ks.spcp) {
+                TitleSwitchState(title, Title::SELECTED);
+                break;
+            }
+            if (title.state_timer > 0.75) {
+                TitleSwitchState(title, Title::NOTHING);
+                break;
+            }
+            title.state_timer += dt;
         case Title::NOTHING:
             if (ks.spcp) {
                 TitleSwitchState(title, Title::SELECTED);

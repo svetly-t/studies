@@ -102,29 +102,40 @@ struct Game {
     Title title;
     SDL_Surface *title_sprite_surface;
     SDL_Texture *title_sprite_texture;
-    int title_sprite_size;
+    SDL_Surface *space_sprite_surface;
+    SDL_Texture *space_sprite_texture;
+    int sprite_size;
 
     std::chrono::steady_clock::time_point end_of_update_clock;
 };
 
-void GameSpritesInitialize(Game &game) {
-    game.title_sprite_surface = IMG_Load("./img/title.png");
-    if (game.title_sprite_surface == nullptr) {
-        std::cout << "Failed to load title_sprite_surface" << std::endl;
+void GameSpriteLoad(const char *path, SDL_Renderer *sdl_renderer, SDL_Surface *&sprite_surface, SDL_Texture *&sprite_texture) {
+    sprite_surface = IMG_Load(path);
+    if (sprite_surface == nullptr) {
+        std::cout << "Failed to load " << path << std::endl;
         abort();
     }
-    game.title_sprite_texture = SDL_CreateTextureFromSurface(game.sdl_state.sdl_renderer, game.title_sprite_surface);
-    if (game.title_sprite_texture == nullptr) {
+    sprite_texture = SDL_CreateTextureFromSurface(sdl_renderer, sprite_surface);
+    if (sprite_texture == nullptr) {
         std::cout << SDL_GetError() << std::endl;
         abort();
     }
-    game.title_sprite_size = 500;
+}
+
+void GameSpritesInitialize(Game &game) {
+    GameSpriteLoad("./img/title-simple.png", game.sdl_state.sdl_renderer, game.title_sprite_surface, game.title_sprite_texture);
+    GameSpriteLoad("./img/press-space.png", game.sdl_state.sdl_renderer, game.space_sprite_surface, game.space_sprite_texture);
+    game.sprite_size = 500;
 }
 
 void title(void *vgame) {
     SDL_Rect src;
-    SDL_Rect dst;
+    SDL_Rect dst_title;
+    SDL_Rect dst_space;
     double dt;
+    double bounce_count;
+    double bounce_height;
+    double bounce_timer;
     bool cancel = false;
 
     Game *game = (Game*)vgame;    
@@ -165,19 +176,34 @@ void title(void *vgame) {
 
     src.x = 0;
     src.y = 0;
-    src.w = game->title_sprite_size;
-    src.h = game->title_sprite_size;
+    src.w = game->sprite_size;
+    src.h = game->sprite_size;
 
-    dst.x = kScreenWidth / 2 - game->title_sprite_size / 2;
-    dst.y = kScreenHeight / 2 - game->title_sprite_size / 2;
-    if (title.state == Title::NOTHING) {
-        dst.y += 10 * sin(title.state_timer * 1 * 3.14159);
+    bounce_height = kScreenHeight / 2;
+    bounce_timer = fmod(title.state_timer * 2.0 + 1.0, 2.0) - 1.0;
+    bounce_count = floor((title.state_timer * 2.0 + 1.0) / 2.0);
+
+    dst_title.x = kScreenWidth / 2 - game->sprite_size / 2;
+    dst_title.y = (kScreenHeight / 2 - game->sprite_size / 2) -
+                  (bounce_height * -bounce_timer * bounce_timer + bounce_height) /
+                  (bounce_count * bounce_count * bounce_count + 1.0);
+    // if (title.state == Title::NOTHING) {
+    //     dst_title.y += 10 * sin(title.state_timer * 1 * 3.14159);
+    // }
+    if (title.state == Title::SELECTED || bounce_count >= 2.0) {
+        dst_title.y = kScreenHeight / 2 - game->sprite_size / 2;
     }
-    dst.w = game->title_sprite_size;
-    dst.h = game->title_sprite_size;
+    dst_title.w = game->sprite_size;
+    dst_title.h = game->sprite_size;
+
+    dst_space = dst_title;
+    dst_space.y = kScreenHeight / 2 - game->sprite_size / 2;
 
     if (title.state == Title::NOTHING || std::fmod(title.state_timer, 0.1) > 0.05) {
-        SDL_RenderCopyEx(sdl_state.sdl_renderer, game->title_sprite_texture, &src, &dst, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
+        SDL_RenderCopyEx(sdl_state.sdl_renderer, game->title_sprite_texture, &src, &dst_title, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
+        if (title.state == Title::SELECTED || bounce_count >= 1.0) {
+            SDL_RenderCopyEx(sdl_state.sdl_renderer, game->space_sprite_texture, &src, &dst_space, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
+        }
     }
 
     SDL_UpdateWindowSurface(sdl_state.sdl_window);
