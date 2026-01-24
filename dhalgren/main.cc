@@ -133,9 +133,6 @@ void title(void *vgame) {
     SDL_Rect dst_title;
     SDL_Rect dst_space;
     double dt;
-    double bounce_count;
-    double bounce_height;
-    double bounce_timer;
     bool cancel = false;
 
     Game *game = (Game*)vgame;    
@@ -179,19 +176,10 @@ void title(void *vgame) {
     src.w = game->sprite_size;
     src.h = game->sprite_size;
 
-    bounce_height = kScreenHeight / 2;
-    bounce_timer = fmod(title.state_timer * 2.0 + 1.0, 2.0) - 1.0;
-    bounce_count = floor((title.state_timer * 2.0 + 1.0) / 2.0);
-
     dst_title.x = kScreenWidth / 2 - game->sprite_size / 2;
-    dst_title.y = (kScreenHeight / 2 - game->sprite_size / 2) -
-                  (bounce_height * -bounce_timer * bounce_timer + bounce_height) /
-                  (bounce_count * bounce_count * bounce_count + 1.0);
-    // if (title.state == Title::NOTHING) {
-    //     dst_title.y += 10 * sin(title.state_timer * 1 * 3.14159);
-    // }
-    if (title.state == Title::SELECTED || bounce_count >= 2.0) {
-        dst_title.y = kScreenHeight / 2 - game->sprite_size / 2;
+    dst_title.y = kScreenHeight / 2 - game->sprite_size / 2;
+    if (title.state == Title::NOTHING) {
+        dst_title.y += 10 * sin(title.state_timer * 1 * 3.14159);
     }
     dst_title.w = game->sprite_size;
     dst_title.h = game->sprite_size;
@@ -201,9 +189,7 @@ void title(void *vgame) {
 
     if (title.state == Title::NOTHING || std::fmod(title.state_timer, 0.1) > 0.05) {
         SDL_RenderCopyEx(sdl_state.sdl_renderer, game->title_sprite_texture, &src, &dst_title, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
-        if (title.state == Title::SELECTED || bounce_count >= 1.0) {
-            SDL_RenderCopyEx(sdl_state.sdl_renderer, game->space_sprite_texture, &src, &dst_space, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
-        }
+        SDL_RenderCopyEx(sdl_state.sdl_renderer, game->space_sprite_texture, &src, &dst_space, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
     }
 
     SDL_UpdateWindowSurface(sdl_state.sdl_window);
