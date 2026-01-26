@@ -50,6 +50,8 @@ struct SdlState {
     bool exit = false;
 };
 
+void SdlSpriteLoad(SDL_Surface *&sprite_surface, SDL_Texture *&sprite_texture, SDL_Renderer *sdl_renderer, const char *path);
+
 void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height);
 
 void SdlStatePollEvents(KeyState &ks, bool &exit);

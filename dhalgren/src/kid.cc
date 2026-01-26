@@ -222,11 +222,11 @@ void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight, boo
 
 void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
     const double kBobDist = 2.0;
-    const double kStarDist = 4.0;
+    const double kKidHeight = 8.0;
     double bob_period_factor = 3.0 * (1.0 - abs(kid.vel.x) / 280.0);
     // double bob_period_increase_factor = log(abs(kid.vel.x) + 1.0);
-    V2d downwards = V2d(0, kStarDist);
-    V2d upwards = V2d(0, -kStarDist);
+    V2d downwards = V2d(0, kKidHeight);
+    V2d upwards = V2d(0, -kKidHeight);
 
     KeyState &ks = *(ctx.ks);
 

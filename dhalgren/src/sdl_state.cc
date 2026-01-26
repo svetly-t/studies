@@ -6,6 +6,22 @@
 #include <SDL2/SDL_hints.h>
 #endif
 
+#include <iostream>
+
+void SdlSpriteLoad(SDL_Surface *&sprite_surface, SDL_Texture *&sprite_texture, SDL_Renderer *sdl_renderer, const char *path) {
+    sprite_surface = IMG_Load(path);
+    if (sprite_surface == nullptr) {
+        std::cout << "Failed to load " << path << std::endl;
+        abort();
+    }
+    sprite_texture = SDL_CreateTextureFromSurface(sdl_renderer, sprite_surface);
+    if (sprite_texture == nullptr) {
+        std::cout << SDL_GetError() << std::endl;
+        abort();
+    }
+}
+
+
 void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height) {
     SDL_Init(SDL_INIT_EVERYTHING);
 

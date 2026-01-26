@@ -1,10 +1,10 @@
 #include "include/sdl_state.h"
 #include "include/v2d.h"
 #include "include/kid.h"
+#include "include/kidsprite.h"
 #include "include/title.h"
 
 #include <chrono>
-#include <iostream>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -37,6 +37,21 @@ void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double
     origin = camera.pos - transform_screen;
 
     mouse_pos = origin + ks_mp;
+}
+
+// The width and height are the box size in pixels at zoom = 1.0.
+void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture, SDL_Rect src, V2d pos) {
+    V2d transformed_pos;
+    SDL_Rect sdl_rect;
+    V2d offset_to_center;
+    offset_to_center.x = src.w / 2.0;
+    offset_to_center.y = src.h / 2.0;
+    transformed_pos = (pos - offset_to_center - camera.pos) * camera.zoom;
+    sdl_rect.x = transformed_pos.x + kScreenWidth / 2;
+    sdl_rect.y = transformed_pos.y + kScreenHeight / 2;
+    sdl_rect.w = src.w * camera.zoom;
+    sdl_rect.h = src.h * camera.zoom;
+    SDL_RenderCopyEx(sdl_state.sdl_renderer, texture, &src, &sdl_rect, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
@@ -97,6 +112,7 @@ struct Game {
     Level level;
     Kid kid;
     KidUpdateContext kid_update_ctx;
+    KidSprite kid_sprite;
     Camera camera;
     RopeState rs;
     Title title;
@@ -109,22 +125,9 @@ struct Game {
     std::chrono::steady_clock::time_point end_of_update_clock;
 };
 
-void GameSpriteLoad(const char *path, SDL_Renderer *sdl_renderer, SDL_Surface *&sprite_surface, SDL_Texture *&sprite_texture) {
-    sprite_surface = IMG_Load(path);
-    if (sprite_surface == nullptr) {
-        std::cout << "Failed to load " << path << std::endl;
-        abort();
-    }
-    sprite_texture = SDL_CreateTextureFromSurface(sdl_renderer, sprite_surface);
-    if (sprite_texture == nullptr) {
-        std::cout << SDL_GetError() << std::endl;
-        abort();
-    }
-}
-
 void GameSpritesInitialize(Game &game) {
-    GameSpriteLoad("./img/title-simple.png", game.sdl_state.sdl_renderer, game.title_sprite_surface, game.title_sprite_texture);
-    GameSpriteLoad("./img/press-space.png", game.sdl_state.sdl_renderer, game.space_sprite_surface, game.space_sprite_texture);
+    SdlSpriteLoad(game.title_sprite_surface, game.title_sprite_texture, game.sdl_state.sdl_renderer, "./img/title-simple.png");
+    SdlSpriteLoad(game.space_sprite_surface, game.space_sprite_texture, game.sdl_state.sdl_renderer, "./img/press-space.png");
     game.sprite_size = 500;
 }
 
@@ -201,6 +204,7 @@ void demo(void *vgame) {
     double meters_per_pixel = 0.1;
     KidUpdateContext kid_update_ctx;
     V2d mouse_pos;
+    SDL_Rect src;
     Game *game = (Game*)vgame;
 
     KeyState &ks_prev = game->ks_prev;
@@ -209,6 +213,7 @@ void demo(void *vgame) {
     auto &end_of_update_clock = game->end_of_update_clock; 
     Level &level = game->level;
     Kid &kid = game->kid;
+    KidSprite &kid_sprite = game->kid_sprite;
     Camera &camera = game->camera;
     RopeState &rs = game->rs;
 
@@ -232,6 +237,8 @@ void demo(void *vgame) {
     kid_update_ctx.meters_per_pixel = meters_per_pixel;
     KidUpdate(kid, kid_update_ctx);
 
+    KidSpriteUpdate(kid_sprite, kid, dt);
+
     CameraUpdate(camera, kid, ks, mouse_pos, dt);
 
     LevelUpdate(level, rs, ks, mouse_pos, dt);
@@ -250,8 +257,13 @@ void demo(void *vgame) {
     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
     // Drawing the kid star
-    for (int i = 0; i < 4; ++i)
-        DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
+    // for (int i = 0; i < 4; ++i)
+    //     DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
+
+    src.x = kid_sprite.active_size * kid_sprite.active_frame;
+    src.y = kid_sprite.active_size * kid_sprite.active_vertical_index;
+    src.h = src.w = kid_sprite.active_size;
+    DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, kid.visual_pos);
 
     // Drawing the aiming reticle
     if (kid.state == Kid::JUMP &&
@@ -331,6 +343,7 @@ int main(int argc, char **argv) {
 
     SdlStateInitialize(game.sdl_state, kScreenWidth, kScreenHeight);
     GameSpritesInitialize(game);
+    KidSpriteInitialize(game.kid_sprite, game.sdl_state.sdl_renderer);
     KidInitialize(game.kid);
     LevelInitialize(game.level, kScreenWidth, kScreenHeight);
     RopeStateInitialize(game.rs);
