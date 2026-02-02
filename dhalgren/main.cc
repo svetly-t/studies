@@ -260,9 +260,9 @@ void demo(void *vgame) {
     // for (int i = 0; i < 4; ++i)
     //     DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
 
-    src.x = kid_sprite.active_size * kid_sprite.active_frame;
-    src.y = kid_sprite.active_size * kid_sprite.active_vertical_index;
-    src.h = src.w = kid_sprite.active_size;
+    src.x = kid_sprite.size * kid_sprite.frame_idx;
+    src.y = kid_sprite.size * kid_sprite.vertical_idx;
+    src.h = src.w = kid_sprite.size;
     DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, kid.visual_pos);
 
     // Drawing the aiming reticle

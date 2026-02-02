@@ -4,13 +4,13 @@
 
 struct KidSprite {
     SDL_Texture *active_sprite;
-    int active_frame;
-    int active_size;
-    int active_vertical_index;
+    int frame_idx;
+    int vertical_idx;
+    int size;
 
     double timer;
-    double frame_time;
-    int frame_count;
+    double seconds_per_frame;
+    int number_of_frames;
 
     SDL_Surface *sprite_sheet_surface;
     SDL_Texture *sprite_sheet_texture;
