@@ -114,6 +114,9 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
     return AABBToLineIntersect(aabb, l.p1, l.p2);
 }
 
+// neighbor_idx points to the previous point in the rope array
+// it's done this way to allow new rope points to reference ones that already exist,
+// e.g. ones that are part of a laundry line
 void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
     V2d pos;
     double dist;
@@ -236,8 +239,14 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         acc = (rope_points[i].pos - rope_points[i].pos_prev);
 
         if (rope_points[i].holding_player) {
-            acc.y += rs.kid_gravity;
-            acc += rs.kid_acc;
+            if ((rope_points[i].pos - rope_points[kRopePoints].pos).Magnitude() > 
+                 rope_points[i].neighbor_dist * kRopeLength) {
+                    acc.y += rs.kid_gravity;
+                    acc += rs.kid_acc;
+                } else {
+                    // Makes the kid artificially heavier to give the swing more heft
+                    acc.y += 2.0 * gravity;
+                }
         } else {
             acc.y += gravity;
         }

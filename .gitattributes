@@ -1,0 +1,14 @@
+# Auto-normalize text files to LF in the repo
+* text=auto eol=lf
+
+# Windows-only scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts must stay LF
+*.sh text eol=lf
+
+# Binary files (never touch)
+*.png binary
+*.jpg binary
+*.pdf binary

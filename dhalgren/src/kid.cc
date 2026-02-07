@@ -261,6 +261,9 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     const double kFallSpeed = 160.0;
     const double kDragFactor = 0.00001;
 
+    V2d ks_dir;
+    V2d rs_dir;
+
     if (ctx.ks->rp != 0) {
         KidInitialize(kid);
     }
@@ -433,7 +436,13 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             KidVisualUpdate(kid, ctx, false);
             KidRopeUpdate(kid, ctx);
             KidStarUpdate(kid, ctx, 0.2, false);
-            if (ks.y != 1 && ks_prev.spcp == 1) {
+            if (ks_prev.spcp == 1) {
+                // Web zip code here
+                // ks_dir = V2d(ks.x, ks.y);
+                // rs_dir = rs.rope_points[kRopePoints + kRopeLength - 1].pos - kid.pos;
+                // if (ks_dir * rs_dir > 0) {
+                //     kid.vel = ks_dir.Normalized() * (kid.vel.Magnitude() + (V2d(0, -100.0) * rs_dir.Normalized()));
+                // }
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }
