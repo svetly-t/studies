@@ -37,6 +37,7 @@ struct Kid {
 
     double angle;
     V2d visual_pos;
+    double visual_angle;
     V2d prev_pos;
     V2d pos;
     V2d vel;

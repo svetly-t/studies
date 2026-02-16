@@ -221,20 +221,35 @@ void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight, boo
 }
 
 void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
+    RopeState &rs = *(ctx.rs);
+    KeyState &ks = *(ctx.ks);
+
     const double kBobDist = 2.0;
     const double kKidHeight = 8.0;
-    double bob_period_factor = 3.0 * (1.0 - abs(kid.vel.x) / 280.0);
     // double bob_period_increase_factor = log(abs(kid.vel.x) + 1.0);
     V2d downwards = V2d(0, kKidHeight);
     V2d upwards = V2d(0, -kKidHeight);
+    V2d rightwards = V2d(1.0, 0.0);
 
-    KeyState &ks = *(ctx.ks);
+    double visual_angle;
 
-    if (bob) {
-        kid.visual_pos = kid.pos + upwards + downwards * (abs(sin(kid.state_timer * 2 * 3.14159 / (bob_period_factor))));
-    } else {
-        kid.visual_pos = kid.pos + upwards;
+    switch (kid.state) {
+        case Kid::SWING:
+            kid.visual_pos = kid.pos + downwards;
+            visual_angle = acos(rightwards * (rs.rope_points[kRopePoints + 1].pos - rs.rope_points[kRopePoints].pos).Normalized());
+            kid.visual_angle = -(visual_angle * 180.0 / 3.14159 - 90.0);
+            break;
+        default:
+            kid.visual_pos = kid.pos + upwards;
+            kid.visual_angle = 0;
+            break;
     }
+
+    // if (bob) {
+    //     kid.visual_pos = kid.pos + upwards + downwards * (abs(sin(kid.state_timer * 2 * 3.14159 / (bob_period_factor))));
+    // } else {
+    //     kid.visual_pos = kid.pos + upwards;
+    // }
 }
 
 struct Weights {
@@ -433,9 +448,9 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.angle += (400.0 * signOf(ks.y) + 400.0 * ks.y) * (kid.state_timer + 1.0) * dt;
             break;
         case Kid::SWING:
-            KidVisualUpdate(kid, ctx, false);
             KidRopeUpdate(kid, ctx);
             KidStarUpdate(kid, ctx, 0.2, false);
+            KidVisualUpdate(kid, ctx, false);
             if (ks_prev.spcp == 1) {
                 // Web zip code here
                 // ks_dir = V2d(ks.x, ks.y);
@@ -443,6 +458,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 // if (ks_dir * rs_dir > 0) {
                 //     kid.vel = ks_dir.Normalized() * (kid.vel.Magnitude() + (V2d(0, -100.0) * rs_dir.Normalized()));
                 // }
+                rs.rope_points[kRopePoints].holding_player = false;
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }

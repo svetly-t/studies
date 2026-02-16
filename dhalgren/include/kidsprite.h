@@ -6,7 +6,8 @@ struct KidSprite {
     SDL_Texture *active_sprite;
     int frame_idx;
     int vertical_idx;
-    int size;
+    int size_src;
+    int size_dst;
 
     double timer;
     double seconds_per_frame;
