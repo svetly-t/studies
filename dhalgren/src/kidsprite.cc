@@ -18,32 +18,32 @@ void KidSpriteUpdate(KidSprite &kid_sprite, Kid &kid, double dt) {
 
     switch (kid.state) {
         case Kid::STAND:
-            kid_sprite.number_of_frames = 2;
+            kid_sprite.number_of_frames = 1;
             kid_sprite.seconds_per_frame = 0.25;
             kid_sprite.vertical_idx = 0;
             break;
         case Kid::CHARGE_RUN:
             kid_sprite.number_of_frames = 2;
-            kid_sprite.seconds_per_frame = 0.5 / (kid.state_timer + 1.0);
+            kid_sprite.seconds_per_frame = 0.5 / (10.0 * kid.state_timer + 1.0);
             kid_sprite.vertical_idx = 0;
             break;
         case Kid::RUN:
             kid_sprite.number_of_frames = 2;
-            kid_sprite.seconds_per_frame = 0.3 / (kid.vel.x + 1.0);
+            kid_sprite.seconds_per_frame = 0.3 / (abs(kid.vel.x) / 50.0 + 1.0);
             kid_sprite.vertical_idx = 0;
             break;
         case Kid::JUMP:
             kid_sprite.number_of_frames = 1;
-            kid_sprite.seconds_per_frame = 0.3 / (kid.vel.x + 1.0);
+            kid_sprite.seconds_per_frame = 0.3 / (abs(kid.vel.x) + 1.0);
             kid_sprite.vertical_idx = 1;
             break;
         case Kid::SWING:
             kid_sprite.number_of_frames = 1;
-            kid_sprite.seconds_per_frame = 0.3 / (kid.vel.x + 1.0);
+            kid_sprite.seconds_per_frame = 0.3 / (abs(kid.vel.x) + 1.0);
             kid_sprite.vertical_idx = 3;
             break;
         default:
-            kid_sprite.number_of_frames = 2;
+            kid_sprite.number_of_frames = 1;
             kid_sprite.seconds_per_frame = 0.5;
             kid_sprite.vertical_idx = 2;
             break;

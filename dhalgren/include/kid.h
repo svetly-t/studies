@@ -34,10 +34,10 @@ struct Kid {
 
     V2d star_pos[4];
     V2d star_pos_prev[4];
-
     double angle;
-    V2d visual_pos;
+
     double visual_angle;
+    V2d visual_pos;
     V2d prev_pos;
     V2d pos;
     V2d vel;

@@ -40,7 +40,8 @@ void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
-void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture, SDL_Rect src, SDL_Rect dst, double angle, V2d pos) {
+void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture, SDL_Rect src, SDL_Rect dst, bool flip, double angle, V2d pos) {
+    SDL_RendererFlip renderer_flip;
     V2d transformed_pos;
     V2d offset_to_center;
     offset_to_center.x = dst.w / 2.0;
@@ -50,7 +51,10 @@ void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture,
     dst.y = transformed_pos.y + kScreenHeight / 2;
     dst.w = dst.w * camera.zoom;
     dst.h = dst.h * camera.zoom;
-    SDL_RenderCopyEx(sdl_state.sdl_renderer, texture, &src, &dst, angle, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
+    renderer_flip = SDL_RendererFlip::SDL_FLIP_NONE;
+    if (flip)
+        renderer_flip = SDL_RendererFlip::SDL_FLIP_HORIZONTAL;
+    SDL_RenderCopyEx(sdl_state.sdl_renderer, texture, &src, &dst, angle, nullptr, renderer_flip);
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
@@ -229,6 +233,8 @@ void demo(void *vgame) {
 
     dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-end_of_update_clock).count() / 1000000.0;
 
+    RopeStateUpdate(rs, dt);
+
     kid_update_ctx.level = &level;
     kid_update_ctx.ks = &ks;
     kid_update_ctx.rs = &rs;
@@ -242,8 +248,6 @@ void demo(void *vgame) {
     CameraUpdate(camera, kid, ks, mouse_pos, dt);
 
     LevelUpdate(level, rs, ks, mouse_pos, dt);
-
-    RopeStateUpdate(rs, dt);
 
     end_of_update_clock = std::chrono::steady_clock::now();
 
@@ -264,7 +268,7 @@ void demo(void *vgame) {
     src.y = kid_sprite.size_src * kid_sprite.vertical_idx;
     src.h = src.w = kid_sprite.size_src;
     dst.h = dst.w = kid_sprite.size_dst;
-    DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, dst, kid.visual_angle, kid.visual_pos);
+    DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, dst, kid.vel.x < 0.0, kid.visual_angle, kid.visual_pos);
 
     // Drawing the aiming reticle
     if (kid.state == Kid::JUMP &&
