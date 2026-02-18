@@ -115,7 +115,7 @@ struct Game {
     Level level;
     Kid kid;
     KidUpdateContext kid_update_ctx;
-    KidSprite kid_sprite;
+    // KidSprite kid_sprite;
     Camera camera;
     RopeState rs;
     Title title;
@@ -217,7 +217,7 @@ void demo(void *vgame) {
     auto &end_of_update_clock = game->end_of_update_clock; 
     Level &level = game->level;
     Kid &kid = game->kid;
-    KidSprite &kid_sprite = game->kid_sprite;
+    // KidSprite &kid_sprite = game->kid_sprite;
     Camera &camera = game->camera;
     RopeState &rs = game->rs;
 
@@ -243,7 +243,7 @@ void demo(void *vgame) {
     kid_update_ctx.meters_per_pixel = meters_per_pixel;
     KidUpdate(kid, kid_update_ctx);
 
-    KidSpriteUpdate(kid_sprite, kid, dt);
+    // KidSpriteUpdate(kid_sprite, kid, dt);
 
     CameraUpdate(camera, kid, ks, mouse_pos, dt);
 
@@ -261,14 +261,14 @@ void demo(void *vgame) {
     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
     // Drawing the kid star
-    // for (int i = 0; i < 4; ++i)
-    //     DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
+    for (int i = 0; i < 4; ++i)
+        DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
 
-    src.x = kid_sprite.size_src * kid_sprite.frame_idx;
-    src.y = kid_sprite.size_src * kid_sprite.vertical_idx;
-    src.h = src.w = kid_sprite.size_src;
-    dst.h = dst.w = kid_sprite.size_dst;
-    DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, dst, kid.vel.x < 0.0, kid.visual_angle, kid.visual_pos);
+    // src.x = kid_sprite.size_src * kid_sprite.frame_idx;
+    // src.y = kid_sprite.size_src * kid_sprite.vertical_idx;
+    // src.h = src.w = kid_sprite.size_src;
+    // dst.h = dst.w = kid_sprite.size_dst;
+    // DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, dst, kid.vel.x < 0.0, kid.visual_angle, kid.visual_pos);
 
     // Drawing the aiming reticle
     if (kid.state == Kid::JUMP &&
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
 
     SdlStateInitialize(game.sdl_state, kScreenWidth, kScreenHeight);
     GameSpritesInitialize(game);
-    KidSpriteInitialize(game.kid_sprite, game.sdl_state.sdl_renderer);
+    // KidSpriteInitialize(game.kid_sprite, game.sdl_state.sdl_renderer);
     KidInitialize(game.kid);
     LevelInitialize(game.level, kScreenWidth, kScreenHeight);
     RopeStateInitialize(game.rs);

@@ -137,4 +137,10 @@ eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/id_ed25519
 ```
 
+Get emscripten in termux:
+```
+pkg update && pkg upgrade
+pkg install emscripten
+```
+
 Then clone this repo
