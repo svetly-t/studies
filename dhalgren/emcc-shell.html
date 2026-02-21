@@ -84,6 +84,8 @@
         e.preventDefault();
       }, false);
 
+      canvasElement.addEventListener('pointerdown', () => canvasElement.focus());
+
       var Module = {
         print(...args) {
           // These replacements are necessary if you render to raw HTML

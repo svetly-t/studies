@@ -4,6 +4,20 @@
 #include "kid.h"
 #include "utilities.h"
 
+bool TouchEventNear(V2d final, V2d initial, double mag) {
+    if ((final - initial).SqrMagnitude() < mag * mag)
+        return true;
+    return false;
+}
+
+int TouchEventToX(V2d final, V2d initial, double mag) {
+    if (final.x - initial.x > mag)
+        return 1;
+    if (final.x - initial.x < -mag)
+        return 1;
+    return 0;
+}
+
 void KidInitialize(Kid &kid) {
     kid.state = Kid::STAND;
     kid.pos.x = 0;
@@ -72,10 +86,16 @@ V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx) {
     KeyState &ks = *(ctx.ks);
     // RopeState &rs = *(ctx.rs);
     Level &level = *(ctx.level);
+    V2d mouse_pos = ctx.mouse_pos;
 
     kid.swing_reticle.width = kid.swing_reticle.height = 200.0;
-    kid.swing_reticle.pos = kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0) - V2d(kid.swing_reticle.width / 2.0, kid.swing_reticle.height / 2.0);
-    
+
+    if (ks.t) {
+        kid.swing_reticle.pos = mouse_pos - V2d(kid.swing_reticle.width / 2.0, kid.swing_reticle.height / 2.0);
+    } else {
+        kid.swing_reticle.pos = kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0) - V2d(kid.swing_reticle.width / 2.0, kid.swing_reticle.height / 2.0);
+    }
+
     // for (int i = 0; i < kRopePoints; ++i) {
     //     if (!rs.rope_points[i].active)
     //         continue;
@@ -88,7 +108,7 @@ V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx) {
         if (AABBToAABBOverlap(aabb, kid.swing_reticle, anchor))
             return anchor;
 
-    return kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0);
+    return kid.swing_reticle.pos + V2d(kid.swing_reticle.width / 2.0, kid.swing_reticle.height / 2.0);
 }
 
 void KidRopeStart(Kid &kid, KidUpdateContext ctx, V2d endpoint) {
@@ -266,6 +286,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     KeyState &ks_prev = *(ctx.ks_prev);
     RopeState &rs = *(ctx.rs);
     Level &level = *(ctx.level);
+    V2d mouse_pos = ctx.mouse_pos;
     double dt = ctx.dt;
 
     double sigmoid;
@@ -279,8 +300,12 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     V2d ks_dir;
     V2d rs_dir;
 
-    if (ctx.ks->rp != 0) {
+    if (ks.rp != 0) {
         KidInitialize(kid);
+    }
+
+    if (ks.t) {
+        ks.x = TouchEventToX(mouse_pos, kid.pos, 10.0);
     }
 
     kid.angle += 800.0 * (kid.state_timer + 1.0) * ks.x * dt;
@@ -400,7 +425,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             } else if (kid.charge_started && ks.spc > 0) {
                 kid.charge_timer += dt;
                 kid.swing_anchor = KidRopeFindAnchor(kid, ctx);
-            } else if (kid.charge_started) {
+            } else if (kid.charge_started || ks.tp) {
                 RopeAdd(rs, KidRopeFindAnchor(kid, ctx), kid.pos, kRopeLength, true, kid.prev_pos);
                 // KidRopeStart(kid, ctx, KidRopeFindAnchor(kid, ctx)); // kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0));
                 KidSwitchState(kid, Kid::SWING);
@@ -451,7 +476,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             KidRopeUpdate(kid, ctx);
             KidStarUpdate(kid, ctx, 0.2, false);
             KidVisualUpdate(kid, ctx, false);
-            if (ks_prev.spcp == 1) {
+            if (ks_prev.spcp == 1 || ks_prev.t == 0) {
                 // Web zip code here
                 // ks_dir = V2d(ks.x, ks.y);
                 // rs_dir = rs.rope_points[kRopePoints + kRopeLength - 1].pos - kid.pos;

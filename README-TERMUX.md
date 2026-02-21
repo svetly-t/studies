@@ -41,6 +41,7 @@ alias ga="git add ."
 alias gc="git commit -m"
 alias gp="git push"
 alias gl="git pull"
+alias gpf="git reset HEAD~1; git reset HEAD --hard; git pull"
 
 # ensure colors + proper terminal
 export TERM=xterm-256color

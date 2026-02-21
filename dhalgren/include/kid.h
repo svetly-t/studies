@@ -49,6 +49,7 @@ struct KidUpdateContext {
     KeyState *ks;
     KeyState *ks_prev;
     RopeState *rs;
+    V2d mouse_pos;
     double meters_per_pixel;
     double dt;
 };

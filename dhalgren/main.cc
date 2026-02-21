@@ -22,11 +22,17 @@ struct Camera {
     double zoom = 1.0;
 };
 
-void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double dt) {
+V2d CalculateMousePosInWorld(Camera &camera, KeyState &ks, double dt) {
     V2d origin;
     V2d transform_screen = { (double)kScreenWidth / 2, (double)kScreenHeight / 2 };
     V2d ks_mp = { (double)ks.mx, (double)ks.my };
 
+    origin = camera.pos - transform_screen;
+
+    return origin + ks_mp;
+}
+
+void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, double dt) {
     if (ks.z) {
         camera.zoom += (0.5 - camera.zoom) * dt * 4.0;
     } else {
@@ -34,9 +40,6 @@ void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, V2d &mouse_pos, double
     }
 
     camera.pos += (kid.pos - camera.pos) * dt * 2.0;
-    origin = camera.pos - transform_screen;
-
-    mouse_pos = origin + ks_mp;
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
@@ -241,13 +244,14 @@ void demo(void *vgame) {
     kid_update_ctx.ks_prev = &ks_prev;
     kid_update_ctx.dt = dt;
     kid_update_ctx.meters_per_pixel = meters_per_pixel;
+    kid_update_ctx.mouse_pos = CalculateMousePosInWorld(camera, ks, dt);
     KidUpdate(kid, kid_update_ctx);
 
     // KidSpriteUpdate(kid_sprite, kid, dt);
 
-    CameraUpdate(camera, kid, ks, mouse_pos, dt);
+    CameraUpdate(camera, kid, ks, dt);
 
-    LevelUpdate(level, rs, ks, mouse_pos, dt);
+    LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks, dt), dt);
 
     end_of_update_clock = std::chrono::steady_clock::now();
 

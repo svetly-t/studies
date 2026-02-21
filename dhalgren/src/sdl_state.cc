@@ -64,6 +64,16 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
             case SDL_QUIT:
                 exit = true;
                 break;
+            case SDL_FINGERDOWN:
+                //if ( !ks.t ) ks.tp = 1;
+                //ks.t = 1;
+                // ks.mx = sdl_event.tfinger.x;
+                // ks.my = sdl_event.tfinger.y;
+                break;
+            case SDL_FINGERUP:
+                //ks.t = 0;
+                //ks.tp = 0;
+                break;
             case SDL_KEYDOWN:
                 switch( sdl_event.key.keysym.sym ){
                     case SDLK_LEFT:
@@ -185,6 +195,10 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
                     case 1:
                         if (!ks.mlc) ks.mlcp = 1;
                         ks.mlc = 1;
+                        if (!ks.t) ks.tp = 1;
+                        ks.t = 1;
+                        ks.mx = sdl_event.button.x;
+                        ks.my = sdl_event.button.y;
                         break;
                     case 3:
                         if (!ks.mrc) ks.mrcp = 1;
@@ -199,6 +213,8 @@ void SdlStatePollEvents(KeyState &ks, bool &exit) {
                     case 1:
                         ks.mlc = 0;
                         ks.mlcp = 0;
+                        ks.t = 0;
+                        ks.tp = 0;
                         break;
                     case 3:
                         ks.mrc = 0;
@@ -224,4 +240,5 @@ void KeyStateClearPress(KeyState &ks) {
     ks.escp = 0;
     ks.mlcp = 0;
     ks.mrcp = 0;
+    ks.tp = 0;
 }

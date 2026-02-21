@@ -92,6 +92,19 @@ webzip: web
 	mv index.html index.js index.wasm $(EMBUILDDIR)
 	zip -r $(EMBUILDDIR).zip $(EMBUILDDIR)
 
+#
+# Localhost
+#
+
+force-latest-branch:
+	git checkout
+	git reset --hard @{u}
+
+force-build: force-latest-branch web
+
+lh: force-build
+	python -m http.server 8000
+
 # =====================
 # Cleanup
 # =====================

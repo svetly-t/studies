@@ -40,6 +40,10 @@ struct KeyState {
     // mouse buttons pressed
     int mlcp = 0;
     int mrcp = 0;
+    // touch held
+    int t = 0;
+    // touch pressed
+    int tp = 0;
 };
 
 struct SdlState {

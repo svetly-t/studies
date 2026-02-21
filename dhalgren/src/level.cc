@@ -410,7 +410,7 @@ bool LevelRemoveBox(Level &level, V2d mouse_pos) {
     return false;
 }
 
-void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d &mouse_pos, double dt) {
+void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d mouse_pos, double dt) {
     bool removed_box = false;
     switch (level.state) {
         case Level::READY_BOX:
@@ -423,8 +423,8 @@ void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d &mouse_pos, doub
                     break;
             }
             if (ks.mlc != 0) {
-                LevelSwitchState(level, Level::ADJUST_BOX);
-                level.aabb.pos = mouse_pos;
+                // LevelSwitchState(level, Level::ADJUST_BOX);
+                // level.aabb.pos = mouse_pos;
                 break;
             }
             if (ks.rp != 0) {
