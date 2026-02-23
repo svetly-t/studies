@@ -14,6 +14,21 @@ static int kScreenWidth = 800;
 static int kScreenHeight = 600;
 static unsigned int kMillisecondsPerFrame = 1000/60;
 
+struct Circle {
+    double radius;
+    double timer;
+};
+
+void CircleUpdate(Circle &circle, KeyState &ks, double dt) {
+    if (ks.mlc == 0) {
+        circle.timer = 0;
+        circle.radius = 50.0;
+    } else if (ks.mlc) {
+        circle.timer += dt;
+        circle.radius = 50.0 + 200.0 / (circle.timer * 50.0 + 1.0);
+    }
+}
+
 struct Camera {
     V2d pos;
     // As zoom gets lower, the size of drawn elements scales linearly.
@@ -83,6 +98,24 @@ void DrawLine(SdlState &sdl_state, Camera &camera, V2d p1, V2d p2) {
     SDL_RenderDrawLine(sdl_state.sdl_renderer, p1.x, p1.y, p2.x, p2.y);
 }
 
+void DrawRunningCircle(SdlState &sdl_state, int mx, int my, int radius) {
+    const int kNumPoints = 32;
+    double rad_offset;
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+
+    SDL_Point points[kNumPoints];
+
+    for (int i = 0; i < kNumPoints; ++i) {
+        rad_offset = 2 * 3.14159 / (double)kNumPoints * (double)i;
+        points[i].x = mx + radius * cos(ms * 4 + rad_offset);
+        points[i].y = my + radius * sin(ms * 4 + rad_offset);
+    }
+
+    SDL_RenderDrawPoints(sdl_state.sdl_renderer, points, kNumPoints);
+}
+
 // Use this to fix frametimes: https://discourse.libsdl.org/t/poor-performance-of-sdl2-on-macos/28276/3
 Uint32 timerTickCallBack(Uint32 iIntervalInMilliseconds, void *param) {
     SDL_Event event;
@@ -121,11 +154,14 @@ struct Game {
     // KidSprite kid_sprite;
     Camera camera;
     RopeState rs;
+    Circle circle;
     Title title;
     SDL_Surface *title_sprite_surface;
     SDL_Texture *title_sprite_texture;
     SDL_Surface *space_sprite_surface;
     SDL_Texture *space_sprite_texture;
+    SDL_Surface *circle_sprite_surface;
+    SDL_Texture *circle_sprite_texture;
     int sprite_size;
 
     std::chrono::steady_clock::time_point end_of_update_clock;
@@ -134,6 +170,7 @@ struct Game {
 void GameSpritesInitialize(Game &game) {
     SdlSpriteLoad(game.title_sprite_surface, game.title_sprite_texture, game.sdl_state.sdl_renderer, "./img/title-simple.png");
     SdlSpriteLoad(game.space_sprite_surface, game.space_sprite_texture, game.sdl_state.sdl_renderer, "./img/press-space.png");
+    SdlSpriteLoad(game.circle_sprite_surface, game.circle_sprite_texture, game.sdl_state.sdl_renderer, "./img/circle.png");
     game.sprite_size = 500;
 }
 
@@ -223,6 +260,7 @@ void demo(void *vgame) {
     // KidSprite &kid_sprite = game->kid_sprite;
     Camera &camera = game->camera;
     RopeState &rs = game->rs;
+    Circle &circle = game->circle;
 
     SdlStatePollEvents(ks, cancel);
 
@@ -253,6 +291,8 @@ void demo(void *vgame) {
 
     LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks, dt), dt);
 
+    CircleUpdate(circle, ks, dt);
+
     end_of_update_clock = std::chrono::steady_clock::now();
 
     ks_prev = ks;
@@ -273,6 +313,15 @@ void demo(void *vgame) {
     // src.h = src.w = kid_sprite.size_src;
     // dst.h = dst.w = kid_sprite.size_dst;
     // DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, dst, kid.vel.x < 0.0, kid.visual_angle, kid.visual_pos);
+
+    // Draw a circle where the mouse pointer is at
+    if (ks.mlc) {
+        // DrawRunningCircle(sdl_state, ks.mx, ks.my, 50 + 50 / (kid.state_timer * 50.0 + 1));
+        src.x = src.y = 0;
+        src.h = src.w = game->sprite_size;
+        dst.h = dst.w = circle.radius * 2;
+        DrawTextureAtV2d(sdl_state, camera, game->circle_sprite_texture, src, dst, 0, 0, CalculateMousePosInWorld(camera, ks, dt));
+    }
 
     // Drawing the aiming reticle
     if (kid.state == Kid::JUMP &&

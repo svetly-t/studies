@@ -44,6 +44,8 @@ struct KeyState {
     int t = 0;
     // touch pressed
     int tp = 0;
+
+    double mlc_press_timer;
 };
 
 struct SdlState {
