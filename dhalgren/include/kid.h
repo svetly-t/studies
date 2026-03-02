@@ -24,6 +24,8 @@ struct Kid {
     double charge_timer_2;
     bool charge_started;
 
+    bool using_touch;
+
     double speed;
 
     AABB swing_reticle;

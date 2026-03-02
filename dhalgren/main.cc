@@ -14,21 +14,6 @@ static int kScreenWidth = 800;
 static int kScreenHeight = 600;
 static unsigned int kMillisecondsPerFrame = 1000/60;
 
-struct Circle {
-    double radius;
-    double timer;
-};
-
-void CircleUpdate(Circle &circle, KeyState &ks, double dt) {
-    if (ks.mlc == 0) {
-        circle.timer = 0;
-        circle.radius = 50.0;
-    } else if (ks.mlc) {
-        circle.timer += dt;
-        circle.radius = 50.0 + 200.0 / (circle.timer * 50.0 + 1.0);
-    }
-}
-
 struct Camera {
     V2d pos;
     // As zoom gets lower, the size of drawn elements scales linearly.
@@ -55,6 +40,29 @@ void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, double dt) {
     }
 
     camera.pos += (kid.pos - camera.pos) * dt * 2.0;
+}
+
+struct Circle {
+    V2d initial_pos;
+    V2d pos;
+    double radius;
+    double timer;
+};
+
+void CircleUpdate(Circle &circle, Camera &camera, KeyState &ks, double dt) {
+    V2d mouse_pos = CalculateMousePosInWorld(camera, ks, dt);
+
+    if (ks.mlc == 0) {
+        circle.timer = 0;
+        circle.radius = 50.0;
+    } else if (ks.mlcp) {
+        circle.initial_pos = mouse_pos;
+    } else if (ks.mlc) {
+        // circle.pos = circle.initial_pos + (mouse_pos - circle.initial_pos) * 0.9;
+        circle.pos = mouse_pos;
+        circle.timer += dt;
+        circle.radius = 50.0 + 200.0 / (circle.timer * 50.0 + 1.0);
+    }
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
@@ -291,7 +299,7 @@ void demo(void *vgame) {
 
     LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks, dt), dt);
 
-    CircleUpdate(circle, ks, dt);
+    CircleUpdate(circle, camera, ks, dt);
 
     end_of_update_clock = std::chrono::steady_clock::now();
 
@@ -316,11 +324,10 @@ void demo(void *vgame) {
 
     // Draw a circle where the mouse pointer is at
     if (ks.mlc) {
-        // DrawRunningCircle(sdl_state, ks.mx, ks.my, 50 + 50 / (kid.state_timer * 50.0 + 1));
         src.x = src.y = 0;
         src.h = src.w = game->sprite_size;
         dst.h = dst.w = circle.radius * 2;
-        DrawTextureAtV2d(sdl_state, camera, game->circle_sprite_texture, src, dst, 0, 0, CalculateMousePosInWorld(camera, ks, dt));
+        DrawTextureAtV2d(sdl_state, camera, game->circle_sprite_texture, src, dst, 0, 0, circle.pos);
     }
 
     // Drawing the aiming reticle
