@@ -54,6 +54,7 @@ struct SdlState {
     SDL_Renderer *sdl_renderer;
 
     bool exit = false;
+    unsigned int fullscreen_flags = 0;
 };
 
 void SdlSpriteLoad(SDL_Surface *&sprite_surface, SDL_Texture *&sprite_texture, SDL_Renderer *sdl_renderer, const char *path);

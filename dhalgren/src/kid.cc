@@ -129,12 +129,12 @@ void KidRopeStart(Kid &kid, KidUpdateContext ctx, V2d endpoint) {
     }
 }
 
-void KidRopeUpdate(Kid &kid, KidUpdateContext ctx) {
+void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, double acceleration_multiplier) {
     KeyState &ks = *(ctx.ks);
     RopeState &rs = *(ctx.rs);
 
     rs.kid_gravity = 80.0 + abs(kid.vel.Normalized().Cross(V2d(0, 1))) * 160.0;
-    rs.kid_acc = V2d(ks.x, ks.y).Normalized() * 20.0;
+    rs.kid_acc = V2d(ks.x, ks.y).Normalized() * 20.0 * acceleration_multiplier;
     kid.vel = rs.kid_vel;
     kid.prev_pos = rs.rope_points[kRopePoints].pos_prev;
     kid.pos = rs.rope_points[kRopePoints].pos;
@@ -306,8 +306,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     const double kFallSpeed = 160.0;
     const double kDragFactor = 0.00001;
 
-    double charge_timer_multiplier = 1.0;
-
+    double touch_charge_timer_multiplier = 1.0;
+    double touch_swing_acceleration_multiplier = 1.0;
     bool touch_jump_event = false;
 
     V2d ks_dir;
@@ -319,11 +319,13 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
 
     if (ks.t) {
         kid.using_touch = true;
-        charge_timer_multiplier = 2.0;
+        touch_charge_timer_multiplier = 2.0;
+        touch_swing_acceleration_multiplier = 8.0;
     } else if (ks.x || ks.y || ks.spc) {
         kid.using_touch = false;
         touch_jump_event = false;
-        charge_timer_multiplier = 1.0;
+        touch_charge_timer_multiplier = 1.0;
+        touch_swing_acceleration_multiplier = 1.0;
     }
 
     if (kid.using_touch) {
@@ -382,8 +384,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             // Run speed is on a predefined curve because I was chasing determinism
             // sigmoid:
             kid.vel.x = kid.speed * signOf(kid.charge_timer) /
-                (1.0 + 100.0 * exp(-12.0 * abs(kid.charge_timer * charge_timer_multiplier))) +
-                 20.0 * signOf(kid.charge_timer * charge_timer_multiplier);
+                (1.0 + 100.0 * exp(-12.0 * abs(kid.charge_timer * touch_charge_timer_multiplier))) +
+                 20.0 * signOf(kid.charge_timer * touch_charge_timer_multiplier);
             // logarithmic:
             //     kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
             //     kid.angle += kid.vel.x * 16.0 * dt;
@@ -506,7 +508,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.angle += (400.0 * signOf(ks.y) + 400.0 * ks.y) * (kid.state_timer + 1.0) * dt;
             break;
         case Kid::SWING:
-            KidRopeUpdate(kid, ctx);
+            KidRopeUpdate(kid, ctx, touch_swing_acceleration_multiplier);
             KidStarUpdate(kid, ctx, 0.2, false);
             KidVisualUpdate(kid, ctx, false);
             if (ks_prev.spcp == 1 || ks_prev.t == 0) {

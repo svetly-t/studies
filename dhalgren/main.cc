@@ -10,8 +10,10 @@
 #include <emscripten.h>
 #endif
 
-static int kScreenWidth = 800;
-static int kScreenHeight = 600;
+const static int kWindowedWidth = 800;
+const static int kWindowedHeight = 600;
+static int screenWidth = 800;
+static int screenHeight = 600;
 static unsigned int kMillisecondsPerFrame = 1000/60;
 
 struct Camera {
@@ -24,7 +26,7 @@ struct Camera {
 
 V2d CalculateMousePosInWorld(Camera &camera, KeyState &ks, double dt) {
     V2d origin;
-    V2d transform_screen = { (double)kScreenWidth / 2, (double)kScreenHeight / 2 };
+    V2d transform_screen = { (double)screenWidth / 2, (double)screenHeight / 2 };
     V2d ks_mp = { (double)ks.mx, (double)ks.my };
 
     origin = camera.pos - transform_screen;
@@ -73,8 +75,8 @@ void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture,
     offset_to_center.x = dst.w / 2.0;
     offset_to_center.y = dst.h / 2.0;
     transformed_pos = (pos - offset_to_center - camera.pos) * camera.zoom;
-    dst.x = transformed_pos.x + kScreenWidth / 2;
-    dst.y = transformed_pos.y + kScreenHeight / 2;
+    dst.x = transformed_pos.x + screenWidth / 2;
+    dst.y = transformed_pos.y + screenHeight / 2;
     dst.w = dst.w * camera.zoom;
     dst.h = dst.h * camera.zoom;
     renderer_flip = SDL_RendererFlip::SDL_FLIP_NONE;
@@ -88,8 +90,8 @@ void DrawBoxAtV2d(SdlState &sdl_state, Camera &camera, V2d pos, int width, int h
     V2d transformed_pos;
     SDL_Rect sdl_rect;
     transformed_pos = (pos - camera.pos) * camera.zoom;
-    sdl_rect.x = transformed_pos.x + kScreenWidth / 2;
-    sdl_rect.y = transformed_pos.y + kScreenHeight / 2;
+    sdl_rect.x = transformed_pos.x + screenWidth / 2;
+    sdl_rect.y = transformed_pos.y + screenHeight / 2;
     sdl_rect.w = width * camera.zoom;
     sdl_rect.h = height * camera.zoom;
     SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect);
@@ -100,7 +102,7 @@ void DrawAABB(SdlState &sdl_state, Camera &camera, AABB aabb) {
 }
 
 void DrawLine(SdlState &sdl_state, Camera &camera, V2d p1, V2d p2) {
-    V2d transform_screen = { (double)kScreenWidth / 2, (double)kScreenHeight / 2 };
+    V2d transform_screen = { (double)screenWidth / 2, (double)screenHeight / 2 };
     p1 = (p1 - camera.pos) * camera.zoom + transform_screen;
     p2 = (p2 - camera.pos) * camera.zoom + transform_screen;
     SDL_RenderDrawLine(sdl_state.sdl_renderer, p1.x, p1.y, p2.x, p2.y);
@@ -164,12 +166,13 @@ struct Game {
     RopeState rs;
     Circle circle;
     Title title;
-    SDL_Surface *title_sprite_surface;
-    SDL_Texture *title_sprite_texture;
-    SDL_Surface *space_sprite_surface;
-    SDL_Texture *space_sprite_texture;
-    SDL_Surface *circle_sprite_surface;
-    SDL_Texture *circle_sprite_texture;
+
+    SDL_Surface *title_sprite_surface = nullptr;
+    SDL_Texture *title_sprite_texture = nullptr;
+    SDL_Surface *space_sprite_surface = nullptr;
+    SDL_Texture *space_sprite_texture = nullptr;
+    SDL_Surface *circle_sprite_surface = nullptr;
+    SDL_Texture *circle_sprite_texture = nullptr;
     int sprite_size;
 
     std::chrono::steady_clock::time_point end_of_update_clock;
@@ -230,8 +233,8 @@ void title(void *vgame) {
     src.w = game->sprite_size;
     src.h = game->sprite_size;
 
-    dst_title.x = kScreenWidth / 2 - game->sprite_size / 2;
-    dst_title.y = kScreenHeight / 2 - game->sprite_size / 2;
+    dst_title.x = screenWidth / 2 - game->sprite_size / 2;
+    dst_title.y = screenHeight / 2 - game->sprite_size / 2;
     if (title.state == Title::NOTHING) {
         dst_title.y += 10 * sin(title.state_timer * 1 * 3.14159);
     }
@@ -239,7 +242,7 @@ void title(void *vgame) {
     dst_title.h = game->sprite_size;
 
     dst_space = dst_title;
-    dst_space.y = kScreenHeight / 2 - game->sprite_size / 2;
+    dst_space.y = screenHeight / 2 - game->sprite_size / 2;
 
     if (title.state == Title::NOTHING || std::fmod(title.state_timer, 0.1) > 0.05) {
         SDL_RenderCopyEx(sdl_state.sdl_renderer, game->title_sprite_texture, &src, &dst_title, 0, nullptr, SDL_RendererFlip::SDL_FLIP_NONE);
@@ -257,6 +260,7 @@ void demo(void *vgame) {
     V2d mouse_pos;
     SDL_Rect src;
     SDL_Rect dst;
+    SDL_Rect display;
     Game *game = (Game*)vgame;
 
     KeyState &ks_prev = game->ks_prev;
@@ -300,6 +304,40 @@ void demo(void *vgame) {
     LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks, dt), dt);
 
     CircleUpdate(circle, camera, ks, dt);
+
+    if (ks.mlcp) {
+        if (V2d(ks.mx, ks.my).SqrMagnitude() < 40.0 * 40.0) {
+            sdl_state.fullscreen_flags ^= SDL_WINDOW_FULLSCREEN_DESKTOP;
+            if (sdl_state.fullscreen_flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
+                SDL_GetDisplayBounds(0, &display);
+                screenHeight = display.h;
+                screenWidth = display.w;
+            } else {
+                screenHeight = kWindowedHeight;
+                screenWidth = kWindowedWidth;
+            }
+            SDL_SetWindowSize(sdl_state.sdl_window, screenWidth, screenHeight);
+
+            SDL_SetWindowFullscreen(sdl_state.sdl_window, sdl_state.fullscreen_flags);
+
+            #ifdef __EMSCRIPTEN__
+            // Resize the window after fullscreen only if we're running on desktop
+            #else
+            SDL_SetWindowSize(sdl_state.sdl_window, screenWidth, screenHeight);
+            #endif
+
+            sdl_state.sdl_surface = SDL_GetWindowSurface(sdl_state.sdl_window);
+            if (!sdl_state.sdl_surface) {
+                abort();
+            }
+
+            SDL_DestroyRenderer(sdl_state.sdl_renderer);
+            sdl_state.sdl_renderer = SDL_CreateSoftwareRenderer(sdl_state.sdl_surface);
+            //SDL_RenderSetLogicalSize(sdl_state.sdl_renderer, screenWidth, screenHeight);
+
+            GameSpritesInitialize(*game);
+        }
+    }
 
     end_of_update_clock = std::chrono::steady_clock::now();
 
@@ -406,11 +444,11 @@ int main(int argc, char **argv) {
     SDL_AddTimer(kMillisecondsPerFrame, timerTickCallBack, NULL);
     #endif
 
-    SdlStateInitialize(game.sdl_state, kScreenWidth, kScreenHeight);
+    SdlStateInitialize(game.sdl_state, screenWidth, screenHeight);
     GameSpritesInitialize(game);
     // KidSpriteInitialize(game.kid_sprite, game.sdl_state.sdl_renderer);
     KidInitialize(game.kid);
-    LevelInitialize(game.level, kScreenWidth, kScreenHeight);
+    LevelInitialize(game.level, screenWidth, screenHeight);
     RopeStateInitialize(game.rs);
     TitleInitialize(game.title);
 

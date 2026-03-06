@@ -9,6 +9,14 @@
 #include <iostream>
 
 void SdlSpriteLoad(SDL_Surface *&sprite_surface, SDL_Texture *&sprite_texture, SDL_Renderer *sdl_renderer, const char *path) {
+    if (sprite_surface) {
+        SDL_FreeSurface(sprite_surface);
+        sprite_surface = nullptr;
+    }
+    if (sprite_texture) {
+        SDL_DestroyTexture(sprite_texture);
+        sprite_texture = nullptr;
+    }
     sprite_surface = IMG_Load(path);
     if (sprite_surface == nullptr) {
         std::cout << "Failed to load " << path << std::endl;
@@ -21,7 +29,6 @@ void SdlSpriteLoad(SDL_Surface *&sprite_surface, SDL_Texture *&sprite_texture, S
     }
 }
 
-
 void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height) {
     SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -32,12 +39,12 @@ void SdlStateInitialize(SdlState &sdl_state, int window_width, int window_height
                                   SDL_WINDOWPOS_UNDEFINED,
                                   window_width,
                                   window_height,
-                                  0);
+                                  SDL_WINDOW_RESIZABLE);
     if (!sdl_state.sdl_window) {
         abort();
     }
 
-    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
 
     sdl_state.sdl_surface = SDL_GetWindowSurface(sdl_state.sdl_window);
     if (!sdl_state.sdl_surface) {
