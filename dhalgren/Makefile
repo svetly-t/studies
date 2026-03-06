@@ -32,6 +32,7 @@ EMCXXFLAGS := -Iinclude -std=c++17 \
 			  -s SDL2_IMAGE_FORMATS='["png"]' \
 			  -O3 \
 			  --embed-file=./img/title-simple.png@/img/title-simple.png \
+			  --embed-file=./img/circle.png@/img/circle.png \
 			  --embed-file=./img/press-space.png@/img/press-space.png \
 			  --shell-file emcc-shell.html
 EMLDFLAGS :=
