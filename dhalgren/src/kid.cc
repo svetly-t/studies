@@ -309,6 +309,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     double touch_charge_timer_multiplier = 1.0;
     double touch_swing_acceleration_multiplier = 1.0;
     bool touch_jump_event = false;
+    bool touch_release_event = false;
 
     V2d ks_dir;
     V2d rs_dir;
@@ -317,13 +318,16 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         KidInitialize(kid);
     }
 
+    // toggle -- if kb starts being used,
+    // ignore the touch stuff
     if (ks.t) {
         kid.using_touch = true;
         touch_charge_timer_multiplier = 2.0;
-        touch_swing_acceleration_multiplier = 8.0;
+        touch_swing_acceleration_multiplier = 16.0;
     } else if (ks.x || ks.y || ks.spc) {
         kid.using_touch = false;
         touch_jump_event = false;
+        touch_release_event = false;
         touch_charge_timer_multiplier = 1.0;
         touch_swing_acceleration_multiplier = 1.0;
     }
@@ -333,6 +337,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             ks.x = TouchEventToX(mouse_pos, kid.pos, 80.0);
             ks.y = TouchEventToY(mouse_pos, kid.pos, 80.0);
         } else {
+            if (ks_prev.t == 1)
+                touch_release_event = true;
             ks.x = 0;
             ks.y = 0;
         }
@@ -511,7 +517,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             KidRopeUpdate(kid, ctx, touch_swing_acceleration_multiplier);
             KidStarUpdate(kid, ctx, 0.2, false);
             KidVisualUpdate(kid, ctx, false);
-            if (ks_prev.spcp == 1 || ks_prev.t == 0) {
+            if (ks_prev.spcp == 1 || touch_release_event) {
                 // Web zip code here
                 // ks_dir = V2d(ks.x, ks.y);
                 // rs_dir = rs.rope_points[kRopePoints + kRopeLength - 1].pos - kid.pos;
