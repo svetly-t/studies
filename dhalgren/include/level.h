@@ -22,6 +22,10 @@ struct RopePoint {
     V2d pos_prev;
     int neighbor_idx;
     double neighbor_dist;
+
+    bool pole;
+    bool pole_tip;
+
     bool fixed;
     bool holding_player;
     bool active;
@@ -44,7 +48,7 @@ struct RopeState {
     V2d kid_vel;
 };
 
-void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
+void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev);
 
 void RopeAdd(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player);
 

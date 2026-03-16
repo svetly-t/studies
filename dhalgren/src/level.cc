@@ -117,7 +117,7 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
 // neighbor_idx points to the previous point in the rope array
 // it's done this way to allow new rope points to reference ones that already exist,
 // e.g. ones that are part of a laundry line
-void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
+void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev) {
     V2d pos;
     double dist;
     double total_dist;
@@ -145,6 +145,7 @@ void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player,
         rope_points[rope_point_idx + i].neighbor_idx = -1;
         rope_points[rope_point_idx + i].neighbor_dist = dist;
         rope_points[rope_point_idx + i].active = true;
+        rope_points[rope_point_idx + i].pole = pole;
         rope_points[rope_point_idx + i].fixed = false;
         rope_points[rope_point_idx + i].holding_player = false;
         if (i > 0) {
@@ -155,6 +156,12 @@ void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player,
     if (!holding_player) {
         rope_points[rope_point_idx].fixed = true;
         rope_points[rope_point_idx + last_point_idx].fixed = true;
+    }
+
+    if (pole) {
+        rope_points[rope_point_idx].fixed = true;
+        rope_points[rope_point_idx + last_point_idx].fixed = false;
+        rope_points[rope_point_idx + last_point_idx].pole_tip = true;
     }
 
     if (holding_player) {
@@ -178,6 +185,8 @@ void RopeStateInitialize(RopeState &rs) {
 
     for (int i = 0; i < kRopePointsTotal; ++i) {
         rope_points[i].fixed = false;
+        rope_points[i].pole = false;
+        rope_points[i].pole_tip = false;
         rope_points[i].active = false;
         rope_points[i].holding_player = false;
         rope_points[i].neighbor_idx = -1;
@@ -187,8 +196,9 @@ void RopeStateInitialize(RopeState &rs) {
 void RopeStateUpdate(RopeState &rs, double dt) {
     V2d current_pos;
     V2d acc;
+    V2d dir;
 
-    int neighbor_idx;
+    int neighbor_idx, neighbor_neighbor_idx;
     double w1, w2;
     double gravity;
     double real_swing_dist;
@@ -223,6 +233,17 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             w2 = 0.0;
         }
         singleRopeConstraint(rope_points[neighbor_idx].pos, rope_points[i].pos, w1, w2, neighbor_dist);
+
+        if (rope_points[i].pole) {
+            neighbor_neighbor_idx = rope_points[neighbor_idx].neighbor_idx;
+            if (neighbor_neighbor_idx == -1) {
+                dir = V2d(0, -1);
+            } else {
+                dir = rope_points[i].pos - rope_points[neighbor_neighbor_idx].pos;
+                dir = dir.Normalized();
+            }
+            singlePoleConstraint(rope_points[neighbor_idx].pos, rope_points[i].pos, dir, w1, w2, neighbor_dist);
+        }
     }
 
     gravity = 80.0;
@@ -331,7 +352,8 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
         });
 
         if (rand() % 8 == 0 && i > 1) {
-            RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 10, false, {0, 0});
+            // RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 10, false, false, {0, 0});
+            RopeAdd(rs, level.aabbs[i].pos - V2d(40.0, 80.0), level.aabbs[i].pos, 10, false, true, {0, 0});
         }
     }
 }

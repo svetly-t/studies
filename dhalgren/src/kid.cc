@@ -93,7 +93,7 @@ V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx) {
     V2d anchor;
     
     KeyState &ks = *(ctx.ks);
-    // RopeState &rs = *(ctx.rs);
+    RopeState &rs = *(ctx.rs);
     Level &level = *(ctx.level);
     V2d mouse_pos = ctx.mouse_pos;
 
@@ -105,13 +105,14 @@ V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx) {
         kid.swing_reticle.pos = kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0) - V2d(kid.swing_reticle.width / 2.0, kid.swing_reticle.height / 2.0);
     }
 
-    // for (int i = 0; i < kRopePoints; ++i) {
-    //     if (!rs.rope_points[i].active)
-    //         continue;
-
-    //     if (AABBToPointOverlap(kid.swing_reticle, rs.rope_points[i].pos))
-    //         return rs.rope_points[i].pos;
-    // }
+    for (int i = 0; i < kRopePoints; ++i) {
+        if (!rs.rope_points[i].active)
+            continue;
+        if (!rs.rope_points[i].pole_tip)
+            continue;
+        if (AABBToPointOverlap(kid.swing_reticle, rs.rope_points[i].pos))
+            return rs.rope_points[i].pos;
+    }
 
     for (auto &aabb: level.aabbs)
         if (AABBToAABBOverlap(aabb, kid.swing_reticle, anchor))
@@ -467,7 +468,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.charge_timer += dt;
                 kid.swing_anchor = KidRopeFindAnchor(kid, ctx);
             } else if (kid.charge_started || ks.tp) {
-                RopeAdd(rs, KidRopeFindAnchor(kid, ctx), kid.pos, kRopeLength, true, kid.prev_pos);
+                RopeAdd(rs, KidRopeFindAnchor(kid, ctx), kid.pos, kRopeLength, true, false, kid.prev_pos);
                 // KidRopeStart(kid, ctx, KidRopeFindAnchor(kid, ctx)); // kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0));
                 KidSwitchState(kid, Kid::SWING);
                 break;
