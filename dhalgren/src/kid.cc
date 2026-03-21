@@ -89,13 +89,15 @@ bool KidOverlap(KidUpdateContext ctx, V2d pos) {
     return false;
 }
 
-V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx) {
+V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx, RopePoint *&rp) {
     V2d anchor;
     
     KeyState &ks = *(ctx.ks);
     RopeState &rs = *(ctx.rs);
     Level &level = *(ctx.level);
     V2d mouse_pos = ctx.mouse_pos;
+
+    rp = nullptr;
 
     kid.swing_reticle.width = kid.swing_reticle.height = 200.0;
 
@@ -110,8 +112,10 @@ V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx) {
             continue;
         if (!rs.rope_points[i].pole_tip)
             continue;
-        if (AABBToPointOverlap(kid.swing_reticle, rs.rope_points[i].pos))
+        if (AABBToPointOverlap(kid.swing_reticle, rs.rope_points[i].pos)) {
+            rp = &rs.rope_points[i];
             return rs.rope_points[i].pos;
+        }
     }
 
     for (auto &aabb: level.aabbs)
@@ -140,82 +144,6 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, double acceleration_multiplie
     kid.prev_pos = rs.rope_points[kRopePoints].pos_prev;
     kid.pos = rs.rope_points[kRopePoints].pos;
 }
-
-// void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, bool kid_is_fixed) {
-//     V2d current_pos;
-//     V2d acc;
-
-//     double w1, w2;
-//     double gravity;
-//     double offset;
-//     double real_swing_dist;
-//     double swing_dist_offset;
-//     double dt = ctx.dt;
-//     double constraint_dist = kid.swing_dist / (double)(kSwingPoints - 1);
-//     double last_constraint_dist = constraint_dist;
-//     int point_count = kSwingPoints;
-
-//     V2d effective_vel;
-//     V2d line_to_center;
-
-//     KeyState &ks = *(ctx.ks);
-
-//     // Constrain all the rope points
-//     for (int i = 1; i < kSwingPoints; ++i) {
-//         if (i == 1) {
-//             w1 = 0.0;
-//             w2 = 1.0;
-//         } else if (i == kSwingPoints - 1) {
-//             w1 = 0.975;
-//             w2 = 0.025;
-//         } else {
-//             w1 = 0.5;
-//             w2 = 0.5;
-//         }
-//         offset = singleRopeConstraint(kid.swing_pos[i - 1], kid.swing_pos[i], w1, w2, constraint_dist);
-//     }
-
-//     real_swing_dist = (kid.swing_pos[kSwingPoints - 1] - kid.swing_pos[0]).Magnitude();
-
-//     swing_dist_offset = real_swing_dist - kid.swing_dist;
-
-//     // If the kid is fixed, don't do verlet integration on the last point in the array
-//     // if (kid_is_fixed)
-//     //     point_count = kSwingPoints - 1;
-
-//     if (swing_dist_offset > 0.0)
-//         gravity = 80.0 + abs(kid.vel.Normalized().Cross(V2d(0, 1))) * 160.0;
-//     else
-//         gravity = 160.0;
-
-//     // Do verlet integration using the previous frame's rope points and this frame's
-//     // See https://www.algorithm-archive.org/contents/verlet_integration/verlet_integration.html
-//     for (int i = 1; i < point_count; ++i) {
-//         acc = (kid.swing_pos[i] - kid.swing_pos_prev[i]);
-//         if (i != kSwingPoints - 1)
-//             acc.y += 80.0;
-//         else {
-//             acc.y += gravity;
-//             if (swing_dist_offset > 0.0)
-//                 acc += V2d(ks.x, ks.y).Normalized() * 10.0;
-//         }
-//         current_pos = kid.swing_pos[i];
-//         // This is the verlet part: x(t + dt) = 2x        - x(x - dt) + a * dt**2
-//         //                    i.e.: next_pos  = 2*cur_pos - prev_pos  + acceleration * dt**2
-//         kid.swing_pos[i] = current_pos * 2.0 - kid.swing_pos_prev[i] + acc * dt * dt;
-//         // Sometimes we have dt is 0.0; in that case the kid's vel goes to infinity 
-//         if (dt > 0.0)
-//             kid.vel = (current_pos - kid.swing_pos_prev[i]) / dt;
-//         kid.swing_pos_prev[i] = current_pos;
-//         kid.prev_pos = current_pos;
-//     }
-
-//     // kid.swing_pos[kSwingPoints - 1] = kid.swing_pos[kSwingPoints - 2];
-
-//     // kid.swing_pos[kSwingPoints - 2] = kid.swing_pos[kSwingPoints - 1] + V2d(ks.x, ks.y).Normalized() * last_constraint_dist;
-
-//     kid.pos = kid.swing_pos[kSwingPoints - 1];
-// }
 
 void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight, bool drag) {
     const double kStarDist = 4.0;
@@ -314,6 +242,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
 
     V2d ks_dir;
     V2d rs_dir;
+
+    RopePoint *rp;
 
     if (ks.rp != 0) {
         KidInitialize(kid);
@@ -466,10 +396,14 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.charge_timer += dt;
             } else if (kid.charge_started && ks.spc > 0) {
                 kid.charge_timer += dt;
-                kid.swing_anchor = KidRopeFindAnchor(kid, ctx);
+                kid.swing_anchor = KidRopeFindAnchor(kid, ctx, rp);
             } else if (kid.charge_started || ks.tp) {
-                RopeAdd(rs, KidRopeFindAnchor(kid, ctx), kid.pos, kRopeLength, true, false, kid.prev_pos);
-                // KidRopeStart(kid, ctx, KidRopeFindAnchor(kid, ctx)); // kid.pos + V2d(ks.x, ks.y).Normalized() * 100.0 * (kid.charge_timer + 1.0));
+                kid.swing_anchor = KidRopeFindAnchor(kid, ctx, rp);
+                if (rp != nullptr) {
+                    RopeCreateAndLink(rs, *rp, kid.pos, kRopeLength, true, kid.prev_pos);
+                } else {
+                    RopeCreate(rs, kid.swing_anchor, kid.pos, kRopeLength, true, false, kid.prev_pos);
+                }
                 KidSwitchState(kid, Kid::SWING);
                 break;
             }

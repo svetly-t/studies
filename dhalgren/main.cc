@@ -390,9 +390,9 @@ void demo(void *vgame) {
         if (!rs.rope_points[i].active)
             continue;
         DrawBoxAtV2d(sdl_state, camera, rs.rope_points[i].pos, 2, 2);
-        if (rs.rope_points[i].neighbor_idx == -1)
+        if (rs.rope_points[i].prev_neighbor_idx == -1)
             continue;
-        DrawLine(sdl_state, camera, rs.rope_points[rs.rope_points[i].neighbor_idx].pos, rs.rope_points[i].pos);
+        DrawLine(sdl_state, camera, rs.rope_points[rs.rope_points[i].prev_neighbor_idx].pos, rs.rope_points[i].pos);
     }
 
     DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);

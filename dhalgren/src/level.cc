@@ -114,10 +114,12 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
     return AABBToLineIntersect(aabb, l.p1, l.p2);
 }
 
-// neighbor_idx points to the previous point in the rope array
+// prev_neighbor_idx points to the previous point in the rope array
 // it's done this way to allow new rope points to reference ones that already exist,
 // e.g. ones that are part of a laundry line
-void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev) {
+// Returns the index of the last rope point (e.g. the tip of the rope -- the point furthest from the player)
+// Returns -1 if the rope cannot be created
+int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev) {
     V2d pos;
     double dist;
     double total_dist;
@@ -129,7 +131,7 @@ void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player,
     if (holding_player) {
         rope_point_idx = kRopePoints;
     } else if (rope_point_idx + num_points >= kRopePoints) {
-        return;
+        return -1;
     }
 
     total_dist = (p2 - p1).Magnitude();
@@ -142,14 +144,16 @@ void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player,
         pos = p1 + (p2 - p1).Normalized() * dist * i;
         rope_points[rope_point_idx + i].pos = pos;
         rope_points[rope_point_idx + i].pos_prev = pos;
-        rope_points[rope_point_idx + i].neighbor_idx = -1;
-        rope_points[rope_point_idx + i].neighbor_dist = dist;
+        rope_points[rope_point_idx + i].prev_neighbor_idx = -1;
+        rope_points[rope_point_idx + i].prev_neighbor_dist = dist;
+        rope_points[rope_point_idx + i].next_neighbor_idx = -1;
+        rope_points[rope_point_idx + i].next_neighbor_dist = dist;
         rope_points[rope_point_idx + i].active = true;
         rope_points[rope_point_idx + i].pole = pole;
         rope_points[rope_point_idx + i].fixed = false;
         rope_points[rope_point_idx + i].holding_player = false;
         if (i > 0) {
-            rope_points[rope_point_idx + i].neighbor_idx = rope_point_idx + i - 1;
+            rope_points[rope_point_idx + i].prev_neighbor_idx = rope_point_idx + i - 1;
         }
     }
 
@@ -172,10 +176,24 @@ void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player,
 
     if (!holding_player)
         rs.rope_point_idx += num_points;
+
+    return rope_point_idx + last_point_idx;
 }
 
-void RopeAdd(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player) {
-    return;
+// Link a new rope to an existing RopePoint
+int RopeCreateAndLink(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
+    int new_rope_tip_idx;
+
+    new_rope_tip_idx = RopeCreate(rs, p2.pos, p1, num_points, holding_player, false, holding_player_pos_prev); 
+
+    if (new_rope_tip_idx == -1)
+        return -1;
+
+    // Link the old neighbor to the new one here...
+    rs.rope_points[new_rope_tip_idx].next_neighbor_idx = p2.prev_neighbor_idx + 1;
+    rs.rope_points[new_rope_tip_idx].fixed = false;
+
+    return new_rope_tip_idx;
 }
 
 void RopeStateInitialize(RopeState &rs) {
@@ -189,7 +207,8 @@ void RopeStateInitialize(RopeState &rs) {
         rope_points[i].pole_tip = false;
         rope_points[i].active = false;
         rope_points[i].holding_player = false;
-        rope_points[i].neighbor_idx = -1;
+        rope_points[i].prev_neighbor_idx = -1;
+        rope_points[i].next_neighbor_idx = -1;
     }
 }
 
@@ -198,12 +217,14 @@ void RopeStateUpdate(RopeState &rs, double dt) {
     V2d acc;
     V2d dir;
 
-    int neighbor_idx, neighbor_neighbor_idx;
+    int prev_neighbor_idx, prev_neighbor_neighbor_idx;
+    int next_neighbor_idx;
     double w1, w2;
     double gravity;
     double real_swing_dist;
     double swing_dist_offset;
-    double neighbor_dist;
+    double prev_neighbor_dist;
+    double next_neighbor_dist;
 
     int &rope_point_idx = rs.rope_point_idx;
     RopePoint *rope_points = rs.rope_points;
@@ -213,16 +234,19 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         if (!rope_points[i].active)
             continue;
 
-        if (rope_points[i].neighbor_idx == -1)
+        if (rope_points[i].prev_neighbor_idx == -1)
             continue;
         
-        neighbor_idx = rope_points[i].neighbor_idx;
-        neighbor_dist = rope_points[i].neighbor_dist;
+        prev_neighbor_idx = rope_points[i].prev_neighbor_idx;
+        prev_neighbor_dist = rope_points[i].prev_neighbor_dist;
+        
+        next_neighbor_idx = rope_points[i].next_neighbor_idx;
+        next_neighbor_dist = rope_points[i].next_neighbor_dist;
 
-        if (rope_points[neighbor_idx].fixed) {
+        if (rope_points[prev_neighbor_idx].fixed) {
             w1 = 0.0;
             w2 = 1.0;
-        } else if (rope_points[neighbor_idx].holding_player) {
+        } else if (rope_points[prev_neighbor_idx].holding_player) {
             w1 = 0.025;
             w2 = 0.975;
         } else {
@@ -232,17 +256,23 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         if (rope_points[i].fixed) {
             w2 = 0.0;
         }
-        singleRopeConstraint(rope_points[neighbor_idx].pos, rope_points[i].pos, w1, w2, neighbor_dist);
+        singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
+
+        if (next_neighbor_idx != -1) {
+            w1 = 0.8;
+            w2 = 0.2;
+            singleRopeConstraint(rope_points[i].pos, rope_points[next_neighbor_idx].pos, w1, w2, next_neighbor_dist);
+        }
 
         if (rope_points[i].pole) {
-            neighbor_neighbor_idx = rope_points[neighbor_idx].neighbor_idx;
-            if (neighbor_neighbor_idx == -1) {
+            prev_neighbor_neighbor_idx = rope_points[prev_neighbor_idx].prev_neighbor_idx;
+            if (prev_neighbor_neighbor_idx == -1) {
                 dir = V2d(0, -1);
             } else {
-                dir = rope_points[i].pos - rope_points[neighbor_neighbor_idx].pos;
+                dir = rope_points[i].pos - rope_points[prev_neighbor_neighbor_idx].pos;
                 dir = dir.Normalized();
             }
-            singlePoleConstraint(rope_points[neighbor_idx].pos, rope_points[i].pos, dir, w1, w2, neighbor_dist);
+            singlePoleConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, dir, w1, w2, prev_neighbor_dist);
         }
     }
 
@@ -261,7 +291,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
 
         if (rope_points[i].holding_player) {
             if ((rope_points[i].pos - rope_points[kRopePoints].pos).Magnitude() > 
-                 rope_points[i].neighbor_dist * kRopeLength) {
+                 rope_points[i].prev_neighbor_dist * kRopeLength) {
                     acc.y += rs.kid_gravity;
                     acc += rs.kid_acc;
                 } else {
@@ -353,7 +383,7 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
 
         if (rand() % 8 == 0 && i > 1) {
             // RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 10, false, false, {0, 0});
-            RopeAdd(rs, level.aabbs[i].pos - V2d(40.0, 80.0), level.aabbs[i].pos, 10, false, true, {0, 0});
+            RopeCreate(rs, level.aabbs[i].pos - V2d(40.0, 80.0), level.aabbs[i].pos, 10, false, true, {0, 0});
         }
     }
 }

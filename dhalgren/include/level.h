@@ -20,8 +20,12 @@ struct AABB {
 struct RopePoint {
     V2d pos;
     V2d pos_prev;
-    int neighbor_idx;
-    double neighbor_dist;
+
+    int prev_neighbor_idx;
+    double prev_neighbor_dist;
+
+    int next_neighbor_idx;
+    double next_neighbor_dist;
 
     bool pole;
     bool pole_tip;
@@ -48,9 +52,9 @@ struct RopeState {
     V2d kid_vel;
 };
 
-void RopeAdd(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev);
+int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev);
 
-void RopeAdd(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player);
+int RopeCreateAndLink(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
 
 void RopeStateInitialize(RopeState &rope_state);
 
