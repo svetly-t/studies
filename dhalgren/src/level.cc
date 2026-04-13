@@ -258,6 +258,8 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         }
         singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
 
+        // This is only evaluated if the kid rope is connected to another RopePoint, i.e. to the top of a pole
+        // Otherwise next_neighbor_idx is generally -1
         if (next_neighbor_idx != -1) {
             w1 = 0.8;
             w2 = 0.2;
@@ -273,6 +275,8 @@ void RopeStateUpdate(RopeState &rs, double dt) {
                 dir = dir.Normalized();
             }
             singlePoleConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, dir, w1, w2, prev_neighbor_dist);
+        } else {
+            singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
         }
     }
 

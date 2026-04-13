@@ -17,6 +17,7 @@ struct Kid {
         CHARGE_SHOT,
         SHOT,
         SWING,
+        SPLAT
     };
     State state;
     double state_timer;
@@ -35,7 +36,6 @@ struct Kid {
     double swing_dist;
 
     V2d star_pos[4];
-    V2d star_pos_prev[4];
     double angle;
 
     double visual_angle;

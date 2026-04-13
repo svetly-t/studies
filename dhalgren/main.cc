@@ -87,9 +87,8 @@ void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture,
 
 // The width and height are the box size in pixels at zoom = 1.0.
 void DrawBoxAtV2d(SdlState &sdl_state, Camera &camera, V2d pos, int width, int height) {
-    V2d transformed_pos;
     SDL_Rect sdl_rect;
-    transformed_pos = (pos - camera.pos) * camera.zoom;
+    V2d transformed_pos = (pos - camera.pos) * camera.zoom;
     sdl_rect.x = transformed_pos.x + screenWidth / 2;
     sdl_rect.y = transformed_pos.y + screenHeight / 2;
     sdl_rect.w = width * camera.zoom;
@@ -108,22 +107,11 @@ void DrawLine(SdlState &sdl_state, Camera &camera, V2d p1, V2d p2) {
     SDL_RenderDrawLine(sdl_state.sdl_renderer, p1.x, p1.y, p2.x, p2.y);
 }
 
-void DrawRunningCircle(SdlState &sdl_state, int mx, int my, int radius) {
-    const int kNumPoints = 32;
-    double rad_offset;
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()
-    ).count();
-
-    SDL_Point points[kNumPoints];
-
-    for (int i = 0; i < kNumPoints; ++i) {
-        rad_offset = 2 * 3.14159 / (double)kNumPoints * (double)i;
-        points[i].x = mx + radius * cos(ms * 4 + rad_offset);
-        points[i].y = my + radius * sin(ms * 4 + rad_offset);
-    }
-
-    SDL_RenderDrawPoints(sdl_state.sdl_renderer, points, kNumPoints);
+void DrawExclamationPointAtV2d(SdlState &sdl_state, Camera &camera, V2d pos) {
+    V2d p1 = pos - V2d(8.0, 8.0);
+    V2d p2 = pos - V2d(4.0, 4.0);
+    DrawLine(sdl_state, camera, p1, p2);
+    DrawBoxAtV2d(sdl_state, camera, pos, 1.0, 1.0);
 }
 
 // Use this to fix frametimes: https://discourse.libsdl.org/t/poor-performance-of-sdl2-on-macos/28276/3
@@ -350,7 +338,6 @@ void demo(void *vgame) {
 
     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
-    // Drawing the kid star
     for (int i = 0; i < 4; ++i)
         DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
 

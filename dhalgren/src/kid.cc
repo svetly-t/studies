@@ -145,36 +145,43 @@ void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, double acceleration_multiplie
     kid.pos = rs.rope_points[kRopePoints].pos;
 }
 
-void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight, bool drag) {
+void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight) {
     const double kStarDist = 4.0;
+    const double kPi = 3.14159;
+    double angle;
+    double angle_separator;
+    double cos_angle;
+    double sin_angle;
     double dt = ctx.dt;
-    double cos_angle = cos(kid.angle * 2 * 3.14159 / 360.0);
-    double sin_angle = sin(kid.angle * 2 * 3.14159 / 360.0);
-    V2d upwards = kid.visual_pos + V2d(sin_angle, -cos_angle) * kStarDist;
-    V2d downwards = kid.visual_pos - V2d(sin_angle, -cos_angle) * kStarDist;
-    V2d leftwards = kid.visual_pos - V2d(cos_angle, sin_angle) * kStarDist;
-    V2d rightwards = kid.visual_pos + V2d(cos_angle, sin_angle) * kStarDist;
-    V2d kid_vel_perp = V2d(-kid.vel.y, kid.vel.x);
+    // Look at the desmos for this function, sin(pi/2 * x)
+    // It is similar to the curve you get when doing iterative frame-by-frame interpolation
+    double fadein_clamp;
+    
+    if (kid.state_timer > 0.5)
+        fadein_clamp = 1.0;
+    else
+        fadein_clamp = SDL_clamp(sin(kPi / 2.0 * kid.state_timer * 2.0), 0.0, 1.0);
 
-    if (drag) {
-        for (int i = 0; i < 3; ++i) {
-            singleRopeConstraint(kid.star_pos[0], upwards, constraint_weight, 0.0, 0.0);
-            singleRopeConstraint(kid.star_pos[1], downwards, constraint_weight, 0.0, 0.0);
-            singleRopeConstraint(kid.star_pos[2], leftwards, constraint_weight, 0.0, 0.0);
-            singleRopeConstraint(kid.star_pos[3], rightwards, constraint_weight, 0.0, 0.0);
-        }
-        
-        for (int i = 0; i < 4; ++i) {
-            double random_number = 0.0;
-            double random_direction = random_number - (RAND_MAX / 2.0) > 0 ? 1.0 : -1.0;
-            double random_scale = random_number / (double)RAND_MAX;
-            kid.star_pos[i] += -(kid.vel + (kid_vel_perp * random_scale)) * dt;
-        }
-    } else {
-        kid.star_pos[0] = upwards;
-        kid.star_pos[1] = downwards;
-        kid.star_pos[2] = leftwards;
-        kid.star_pos[3] = rightwards;
+    angle = kid.angle * 2 * kPi / 360.0;
+
+    switch (kid.state) {
+        case Kid::STAND:
+            angle_separator = kPi / 2.0 * fadein_clamp;
+            cos_angle = cos(angle + angle_separator);
+            sin_angle = sin(angle + angle_separator);
+            kid.star_pos[0] = kid.visual_pos + V2d(cos(angle), sin(angle)) * kStarDist;
+            kid.star_pos[1] = kid.visual_pos + V2d(cos(angle + 1.0 * angle_separator), sin(angle + 1.0 * angle_separator)) * kStarDist;
+            kid.star_pos[2] = kid.visual_pos + V2d(cos(angle + 2.0 * angle_separator), sin(angle + 2.0 * angle_separator)) * kStarDist;
+            kid.star_pos[3] = kid.visual_pos + V2d(cos(angle + 3.0 * angle_separator), sin(angle + 3.0 * angle_separator)) * kStarDist;
+            break;
+        default:
+            cos_angle = cos(angle);
+            sin_angle = sin(angle);
+            kid.star_pos[0] = kid.visual_pos + V2d(sin_angle, -cos_angle) * kStarDist;
+            kid.star_pos[1] = kid.visual_pos - V2d(sin_angle, -cos_angle) * kStarDist;
+            kid.star_pos[2] = kid.visual_pos - V2d(cos_angle, sin_angle) * kStarDist;
+            kid.star_pos[3] = kid.visual_pos + V2d(cos_angle, sin_angle) * kStarDist;
+            break;
     }
 }
 
@@ -182,9 +189,8 @@ void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
     RopeState &rs = *(ctx.rs);
     KeyState &ks = *(ctx.ks);
 
-    const double kBobDist = 2.0;
+    const double kPi = 3.14159;
     const double kKidHeight = 8.0;
-    // double bob_period_increase_factor = log(abs(kid.vel.x) + 1.0);
     V2d downwards = V2d(0, kKidHeight);
     V2d upwards = V2d(0, -kKidHeight);
     V2d rightwards = V2d(1.0, 0.0);
@@ -195,19 +201,13 @@ void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
         case Kid::SWING:
             kid.visual_pos = kid.pos + downwards;
             visual_angle = acos(rightwards * (rs.rope_points[kRopePoints + 1].pos - rs.rope_points[kRopePoints].pos).Normalized());
-            kid.visual_angle = -(visual_angle * 180.0 / 3.14159 - 90.0);
+            kid.visual_angle = -(visual_angle * 180.0 / kPi - 90.0);
             break;
         default:
             kid.visual_pos = kid.pos + upwards;
             kid.visual_angle = 0;
             break;
     }
-
-    // if (bob) {
-    //     kid.visual_pos = kid.pos + upwards + downwards * (abs(sin(kid.state_timer * 2 * 3.14159 / (bob_period_factor))));
-    // } else {
-    //     kid.visual_pos = kid.pos + upwards;
-    // }
 }
 
 struct Weights {
@@ -234,6 +234,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
 
     const double kFallSpeed = 160.0;
     const double kDragFactor = 0.00001;
+    const double kPi = 3.14159;
 
     double touch_charge_timer_multiplier = 1.0;
     double touch_swing_acceleration_multiplier = 1.0;
@@ -286,7 +287,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.vel.y = 0;
             KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             KidVisualUpdate(kid, ctx, false);
-            KidStarUpdate(kid, ctx, 1.0, false);
+            KidStarUpdate(kid, ctx, 1.0);
             if (ks.x != 0) {
                 KidSwitchState(kid, Kid::CHARGE_RUN);
                 break;
@@ -296,10 +297,11 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }
+            kid.state_timer += dt;
             break;
         case Kid::CHARGE_RUN:
             // kid.pos.x += kid.vel.x * dt;
-            KidStarUpdate(kid, ctx, 1.1, false);
+            KidStarUpdate(kid, ctx, 1.1);
             if (kid.charge_timer > 0.5) {
                 kid.speed = 100.0;
                 KidSwitchState(kid, Kid::RUN);
@@ -328,7 +330,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             //     kid.angle += kid.vel.x * 16.0 * dt;
             KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             kid.pos.x += kid.vel.x * dt;
-            KidStarUpdate(kid, ctx, 1.1, false);
+            KidStarUpdate(kid, ctx, 1.1);
             KidVisualUpdate(kid, ctx, false);
             if (ks.spcp || touch_jump_event) {
                 KidSwitchState(kid, Kid::JUMP);
@@ -352,40 +354,46 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.charge_timer = SDL_clamp(kid.charge_timer, -1.0, 1.0);
             kid.state_timer += dt;
             break;
+        case Kid::SPLAT:
+            kid.vel.x = SDL_clamp(1.0 - kid.state_timer, 0.0, 1.0) * kid.speed;
+            kid.pos.x += kid.vel.x * dt;
+            KidVisualUpdate(kid, ctx, false);
+            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
+            if (!ground_isct.exists) {
+                KidSwitchState(kid, Kid::JUMP);
+                break;
+            }
+            kid.state_timer += dt;
+            if (kid.state_timer > 1.0) {
+                KidSwitchState(kid, Kid::STAND);
+                break;
+            }
+            break;
         case Kid::JUMP:
-            // Reduce gravity on the way up if holding spacebar
-            // if (ks.spc > 0) {
-            //     // Only resolve the collision if spacebar is not pressed. If it is, then pass through
-            //     if (KidOverlap(ctx, kid.pos)) {
-            //         kid.vel.x += ks.x * 10.0 * dt;
-            //         if (ks.x * kid.vel.x > 0)
-            //             kid.vel.y -= 320.0 * dt;
-            //         else if (ks.x * kid.vel.x < 0)
-            //             kid.vel.y += 320.0 * dt;
-            //     } else {
-            //         kid.vel.y += 80.0 * dt;
-            //     }
-            // } else {
-            //     kid.vel.y += 160.0 * dt;
-            //     KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
-            // }
             kid.vel.y += kFallSpeed * dt;
+            // We save the kid.vel.y into kid.speed here because the velocity gets
+            // changed by the KidCollision func
             kid.speed = kid.vel.y;
             KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             if (velocity_isct.exists) {
                 if (velocity_isct.normal.y < 0.0) {
-                    if (abs(kid.speed) < 50.0) {
+                    if (abs(kid.speed) < 100.0) {
                         KidSwitchState(kid, Kid::RUN);
-                        if (abs(kid.vel.x) > 140.0) {
+                        if (abs(kid.vel.x) > 70.0) {
                             kid.charge_timer = 1.0 * signOf(kid.vel.x);
-                            kid.speed = 100.0; // kid.vel.x - 40.0 * signOf(kid.vel.x);
+                            kid.speed = abs(kid.vel.x); // - 40.0 * signOf(kid.vel.x);
                         } else {
                             kid.charge_timer = 0.25 * signOf(ks.x);
                             kid.speed = 100.0;
                         }
                         break;
                     } else {
-                        kid.vel.y = -40.0;
+                        // This is where the transition to a SPLAT state would go
+                        // kid.vel.y = -kid.speed / 2;
+                        kid.speed = kid.vel.x;
+                        kid.angle = 3.0 * kPi / 4.0;
+                        KidSwitchState(kid, Kid::SPLAT);
+                        break;
                     }
                 }
             }
@@ -431,7 +439,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             if (kid.vel.y > 300.0)
                 kid.vel.y = 300.0;
-            KidStarUpdate(kid, ctx, 0.4, drag);
+            KidStarUpdate(kid, ctx, 0.4);
             KidVisualUpdate(kid, ctx, false);
             break;
         case Kid::CHARGE_BOUNCE:
@@ -442,7 +450,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 break;
             }
             KidVisualUpdate(kid, ctx, false);
-            KidStarUpdate(kid, ctx, 0.2, false);
+            KidStarUpdate(kid, ctx, 0.2);
             kid.state_timer += dt;
             // Alternative spin pattern for when we're not holding left or right
             if (ks.x == 0)
@@ -450,7 +458,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             break;
         case Kid::SWING:
             KidRopeUpdate(kid, ctx, touch_swing_acceleration_multiplier);
-            KidStarUpdate(kid, ctx, 0.2, false);
+            KidStarUpdate(kid, ctx, 0.2);
             KidVisualUpdate(kid, ctx, false);
             if (ks_prev.spcp == 1 || touch_release_event) {
                 // Web zip code here
