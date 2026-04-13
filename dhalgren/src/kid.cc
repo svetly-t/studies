@@ -153,8 +153,8 @@ void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight) {
     double cos_angle;
     double sin_angle;
     double dt = ctx.dt;
-    // Look at the desmos for this function, sin(pi/2 * x)
-    // It is similar to the curve you get when doing iterative frame-by-frame interpolation
+    // Look at the desmos for the function sin(pi/2 * x)
+    // It is similar to the curve you get when doing iterative frame-by-frame interpolation from 0 to 1.
     double fadein_clamp;
     
     if (kid.state_timer > 0.5)
@@ -165,15 +165,15 @@ void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight) {
     angle = kid.angle * 2 * kPi / 360.0;
 
     switch (kid.state) {
-        case Kid::STAND:
-            angle_separator = kPi / 2.0 * fadein_clamp;
-            cos_angle = cos(angle + angle_separator);
-            sin_angle = sin(angle + angle_separator);
-            kid.star_pos[0] = kid.visual_pos + V2d(cos(angle), sin(angle)) * kStarDist;
-            kid.star_pos[1] = kid.visual_pos + V2d(cos(angle + 1.0 * angle_separator), sin(angle + 1.0 * angle_separator)) * kStarDist;
-            kid.star_pos[2] = kid.visual_pos + V2d(cos(angle + 2.0 * angle_separator), sin(angle + 2.0 * angle_separator)) * kStarDist;
-            kid.star_pos[3] = kid.visual_pos + V2d(cos(angle + 3.0 * angle_separator), sin(angle + 3.0 * angle_separator)) * kStarDist;
-            break;
+        // case Kid::UNSPLAT:
+        //     angle_separator = kPi / 2.0 * fadein_clamp;
+        //     cos_angle = cos(angle + angle_separator);
+        //     sin_angle = sin(angle + angle_separator);
+        //     kid.star_pos[0] = kid.visual_pos + V2d(cos(angle), sin(angle)) * kStarDist;
+        //     kid.star_pos[1] = kid.visual_pos + V2d(cos(angle + 1.0 * angle_separator), sin(angle + 1.0 * angle_separator)) * kStarDist;
+        //     kid.star_pos[2] = kid.visual_pos + V2d(cos(angle + 2.0 * angle_separator), sin(angle + 2.0 * angle_separator)) * kStarDist;
+        //     kid.star_pos[3] = kid.visual_pos + V2d(cos(angle + 3.0 * angle_separator), sin(angle + 3.0 * angle_separator)) * kStarDist;
+        //     break;
         default:
             cos_angle = cos(angle);
             sin_angle = sin(angle);
@@ -195,13 +195,22 @@ void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
     V2d upwards = V2d(0, -kKidHeight);
     V2d rightwards = V2d(1.0, 0.0);
 
+    // kUnsplatVZero tells us how quickly the star bounces up after the kid unsplats.
+    // unsplat_gravity comes from solving the kinematics equation for gravity, when v_zero and t are fixed.
+    const double kUnsplatVZero = 17.5;
+    double unsplat_gravity = 2 * kUnsplatVZero / kid.kUnsplatSeconds;
+
     double visual_angle;
 
     switch (kid.state) {
         case Kid::SWING:
-            kid.visual_pos = kid.pos + downwards;
-            visual_angle = acos(rightwards * (rs.rope_points[kRopePoints + 1].pos - rs.rope_points[kRopePoints].pos).Normalized());
-            kid.visual_angle = -(visual_angle * 180.0 / kPi - 90.0);
+            kid.visual_pos = kid.pos; // + downwards;
+            // visual_angle = acos(rightwards * (rs.rope_points[kRopePoints + 1].pos - rs.rope_points[kRopePoints].pos).Normalized());
+            // kid.visual_angle = -(visual_angle * 180.0 / kPi - 90.0);
+            break;
+        case Kid::UNSPLAT:
+            kid.visual_pos = kid.pos + upwards + upwards * (-unsplat_gravity / 2.0 * kid.state_timer * kid.state_timer + kUnsplatVZero * kid.state_timer);
+            kid.visual_angle = 0;
             break;
         default:
             kid.visual_pos = kid.pos + upwards;
@@ -357,6 +366,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         case Kid::SPLAT:
             kid.vel.x = SDL_clamp(1.0 - kid.state_timer, 0.0, 1.0) * kid.speed;
             kid.pos.x += kid.vel.x * dt;
+            KidStarUpdate(kid, ctx, 1.1);
             KidVisualUpdate(kid, ctx, false);
             KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
             if (!ground_isct.exists) {
@@ -365,6 +375,15 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             kid.state_timer += dt;
             if (kid.state_timer > 1.0) {
+                KidSwitchState(kid, Kid::UNSPLAT);
+                break;
+            }
+            break;
+        case Kid::UNSPLAT:
+            KidStarUpdate(kid, ctx, 1.1);
+            KidVisualUpdate(kid, ctx, false);
+            kid.state_timer += dt;
+            if (kid.state_timer > kid.kUnsplatSeconds) {
                 KidSwitchState(kid, Kid::STAND);
                 break;
             }

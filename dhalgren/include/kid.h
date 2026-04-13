@@ -17,13 +17,16 @@ struct Kid {
         CHARGE_SHOT,
         SHOT,
         SWING,
-        SPLAT
+        SPLAT,
+        UNSPLAT
     };
     State state;
     double state_timer;
     double charge_timer;
     double charge_timer_2;
     bool charge_started;
+
+    static constexpr double kUnsplatSeconds = 0.25;
 
     bool using_touch;
 

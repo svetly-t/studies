@@ -161,6 +161,8 @@ struct Game {
     SDL_Texture *space_sprite_texture = nullptr;
     SDL_Surface *circle_sprite_surface = nullptr;
     SDL_Texture *circle_sprite_texture = nullptr;
+    SDL_Surface *exclamation_sprite_surface = nullptr;
+    SDL_Texture *exclamation_sprite_texture = nullptr;
     int sprite_size;
 
     std::chrono::steady_clock::time_point end_of_update_clock;
@@ -170,6 +172,7 @@ void GameSpritesInitialize(Game &game) {
     SdlSpriteLoad(game.title_sprite_surface, game.title_sprite_texture, game.sdl_state.sdl_renderer, "./img/title-simple.png");
     SdlSpriteLoad(game.space_sprite_surface, game.space_sprite_texture, game.sdl_state.sdl_renderer, "./img/press-space.png");
     SdlSpriteLoad(game.circle_sprite_surface, game.circle_sprite_texture, game.sdl_state.sdl_renderer, "./img/circle.png");
+    SdlSpriteLoad(game.exclamation_sprite_surface, game.exclamation_sprite_texture, game.sdl_state.sdl_renderer, "./img/exclamation.png");
     game.sprite_size = 500;
 }
 
@@ -246,6 +249,7 @@ void demo(void *vgame) {
     double meters_per_pixel = 0.1;
     KidUpdateContext kid_update_ctx;
     V2d mouse_pos;
+    V2d rnd_pos;
     SDL_Rect src;
     SDL_Rect dst;
     SDL_Rect display;
@@ -338,8 +342,22 @@ void demo(void *vgame) {
 
     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
 
-    for (int i = 0; i < 4; ++i)
-        DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
+    // Drawing the kid star
+    switch (kid.state) {
+        case Kid::SPLAT:
+            src.x = src.y = 0;
+            src.h = src.w = 64;
+            dst.h = dst.w = 12;
+            rnd_pos.x = rand() % 4;
+            rnd_pos.y = rand() % 4;
+            rnd_pos /= kid.state_timer + 1.0;
+            DrawTextureAtV2d(sdl_state, camera, game->exclamation_sprite_texture, src, dst, 0, 0, kid.visual_pos + rnd_pos);
+            break;
+        default:
+            for (int i = 0; i < 4; ++i)
+                DrawLine(sdl_state, camera, kid.visual_pos, kid.star_pos[i]);
+            break;
+    }
 
     // src.x = kid_sprite.size_src * kid_sprite.frame_idx;
     // src.y = kid_sprite.size_src * kid_sprite.vertical_idx;
