@@ -18,7 +18,8 @@ struct Kid {
         SHOT,
         SWING,
         SPLAT,
-        UNSPLAT
+        UNSPLAT,
+        PARRY
     };
     State state;
     double state_timer;

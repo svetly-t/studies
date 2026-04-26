@@ -40,17 +40,27 @@ void KidSwitchState(Kid &kid, Kid::State new_state) {
     kid.charge_started = false;
 }
 
-void KidCollision(
+struct KidCollision {
+    LineToLineIntersection velocity_isct;
+    LineToLineIntersection ground_isct;
+    bool circle_isct;
+};
+
+void KidCollisionCheck(
+    Kid &kid,
     KidUpdateContext ctx,
-    V2d &pos,
-    V2d &vel,
-    LineToLineIntersection &velocity_isct,
-    LineToLineIntersection &ground_isct
+    KidCollision &kid_collision
 ) {
     V2d pos_to_isct;
     V2d downward;
 
     Level &level = *(ctx.level);
+    LineToLineIntersection &velocity_isct = kid_collision.velocity_isct;
+    LineToLineIntersection &ground_isct = kid_collision.ground_isct;
+    V2d &pos = kid.pos;
+    V2d &vel = kid.vel;
+    bool &circle_isct = kid_collision.circle_isct;
+
     double dt = ctx.dt;
     double meters_per_pixel = ctx.meters_per_pixel;
 
@@ -72,6 +82,13 @@ void KidCollision(
         }
         if (!ground_isct.exists)
             ground_isct = AABBToLineIntersect(aabb, pos, pos + downward);
+    }
+
+    for (auto &circle: level.circles) {
+        if ((circle.pos - pos).SqrMagnitude() > circle.sqrRadius) {
+            circle_isct = true;
+            break;
+        }
     }
 }
 
@@ -219,15 +236,48 @@ void KidVisualUpdate(Kid &kid, KidUpdateContext ctx, bool bob) {
     }
 }
 
-struct Weights {
-    double w0;
-    double w1;
-};
+const double kFallSpeed = 160.0;
+const double kPi = 3.14159;
+
+// Return true if Kid hits the ground, false otherwise
+bool KidJumpUpdate(Kid &kid, KidUpdateContext ctx, KidCollision &kid_collision) {
+    KeyState ks = *(ctx.ks);
+    double dt = ctx.dt;
+
+    kid.vel.y += kFallSpeed * dt;
+    // We save the kid.vel.y into kid.speed here because the velocity gets
+    // overwritten by the KidCollision func, and we need kid.vel.y to determine
+    // if this collision is a SPLAT or not.
+    kid.speed = kid.vel.y;
+    KidCollisionCheck(kid, ctx, kid_collision);
+    if (kid_collision.velocity_isct.exists) {
+        if (kid_collision.velocity_isct.normal.y < 0.0) {
+            if (abs(kid.speed) < 100.0) {
+                KidSwitchState(kid, Kid::RUN);
+                if (abs(kid.vel.x) > 70.0) {
+                    kid.charge_timer = 1.0 * signOf(kid.vel.x);
+                    kid.speed = abs(kid.vel.x); // - 40.0 * signOf(kid.vel.x);
+                } else {
+                    kid.charge_timer = 0.25 * signOf(ks.x);
+                    kid.speed = 100.0;
+                }
+                return true;
+            } else {
+                kid.speed = kid.vel.x;
+                kid.angle = 3.0 * kPi / 4.0;
+                KidSwitchState(kid, Kid::SPLAT);
+                return true;
+            }
+        }
+    }
+    kid.prev_pos = kid.pos;
+    kid.pos += kid.vel * dt;
+
+    return false;
+}
 
 void KidUpdate(Kid &kid, KidUpdateContext ctx) {
-    LineToLineIntersection velocity_isct;
-    LineToLineIntersection ground_isct;
-    double run_speed;
+    KidCollision kid_collision;
 
     KeyState ks = *(ctx.ks);
     KeyState ks_prev = *(ctx.ks_prev);
@@ -236,14 +286,10 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
     V2d mouse_pos = ctx.mouse_pos;
     double dt = ctx.dt;
 
-    double sigmoid;
-    double sigmoid_derivative;
-
     bool drag;
 
-    const double kFallSpeed = 160.0;
     const double kDragFactor = 0.00001;
-    const double kPi = 3.14159;
+    const double kParrySeconds = 0.25;
 
     double touch_charge_timer_multiplier = 1.0;
     double touch_swing_acceleration_multiplier = 1.0;
@@ -294,14 +340,14 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         case Kid::STAND:
             kid.vel.x = 0;
             kid.vel.y = 0;
-            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
+            KidCollisionCheck(kid, ctx, kid_collision);
             KidVisualUpdate(kid, ctx, false);
             KidStarUpdate(kid, ctx, 1.0);
             if (ks.x != 0) {
                 KidSwitchState(kid, Kid::CHARGE_RUN);
                 break;
             }
-            if (!ground_isct.exists) {
+            if (!kid_collision.ground_isct.exists) {
                 kid.vel.y += 80.0;
                 KidSwitchState(kid, Kid::JUMP);
                 break;
@@ -337,7 +383,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             // logarithmic:
             //     kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
             //     kid.angle += kid.vel.x * 16.0 * dt;
-            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
+            KidCollisionCheck(kid, ctx, kid_collision);
             kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1);
             KidVisualUpdate(kid, ctx, false);
@@ -347,7 +393,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.vel.x += signOf(kid.vel.x) * 20.0;
                 break;
             }
-            if (!ground_isct.exists) {
+            if (!kid_collision.ground_isct.exists) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }
@@ -368,8 +414,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1);
             KidVisualUpdate(kid, ctx, false);
-            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
-            if (!ground_isct.exists) {
+            KidCollisionCheck(kid, ctx, kid_collision);
+            if (!kid_collision.ground_isct.exists) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
             }
@@ -383,41 +429,17 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             KidStarUpdate(kid, ctx, 1.1);
             KidVisualUpdate(kid, ctx, false);
             kid.state_timer += dt;
+            // Unlike fall speed, kUnsplatSeconds is a member variable
+            // because the main function needs to know about it
+            // when drawing the exclamation point sprite
             if (kid.state_timer > kid.kUnsplatSeconds) {
                 KidSwitchState(kid, Kid::STAND);
                 break;
             }
             break;
         case Kid::JUMP:
-            kid.vel.y += kFallSpeed * dt;
-            // We save the kid.vel.y into kid.speed here because the velocity gets
-            // changed by the KidCollision func
-            kid.speed = kid.vel.y;
-            KidCollision(ctx, kid.pos, kid.vel, velocity_isct, ground_isct);
-            if (velocity_isct.exists) {
-                if (velocity_isct.normal.y < 0.0) {
-                    if (abs(kid.speed) < 100.0) {
-                        KidSwitchState(kid, Kid::RUN);
-                        if (abs(kid.vel.x) > 70.0) {
-                            kid.charge_timer = 1.0 * signOf(kid.vel.x);
-                            kid.speed = abs(kid.vel.x); // - 40.0 * signOf(kid.vel.x);
-                        } else {
-                            kid.charge_timer = 0.25 * signOf(ks.x);
-                            kid.speed = 100.0;
-                        }
-                        break;
-                    } else {
-                        // This is where the transition to a SPLAT state would go
-                        // kid.vel.y = -kid.speed / 2;
-                        kid.speed = kid.vel.x;
-                        kid.angle = 3.0 * kPi / 4.0;
-                        KidSwitchState(kid, Kid::SPLAT);
-                        break;
-                    }
-                }
-            }
-            kid.prev_pos = kid.pos;
-            kid.pos += kid.vel * dt;
+            if (KidJumpUpdate(kid, ctx, kid_collision))
+                break;
             if (ks.s == 0 && ks.spcp > 0) {
                 kid.charge_started = true;
                 kid.charge_timer += dt;
@@ -435,6 +457,10 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 break;
             }
             if (ks.y == 1 && ks.spcp > 0) {
+                // KidSwitchState(kid, Kid::PARRY);
+                // break;
+                // Below is the old down + spacebar code, which would
+                // put the kid in the BOUNCE state.
                 if (KidOverlap(ctx, kid.pos)) {
                     kid.speed = kid.vel.Magnitude();
                     KidSwitchState(kid, Kid::CHARGE_BOUNCE);
@@ -460,6 +486,15 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 kid.vel.y = 300.0;
             KidStarUpdate(kid, ctx, 0.4);
             KidVisualUpdate(kid, ctx, false);
+            break;
+        case Kid::PARRY:
+            KidStarUpdate(kid, ctx, 1.1);
+            KidVisualUpdate(kid, ctx, false);
+            kid.state_timer += dt;
+            if (kid.state_timer > kParrySeconds) {
+                KidSwitchState(kid, Kid::STAND);
+                break;
+            }
             break;
         case Kid::CHARGE_BOUNCE:
             if (kid.state_timer >= 1.0 && kid.state == Kid::CHARGE_BOUNCE) {

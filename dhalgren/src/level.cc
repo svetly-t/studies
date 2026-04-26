@@ -361,7 +361,7 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
         test = AABB{
             .pos = { x, y },
             .width = width,
-            .height = height
+            .height = height,
         };
 
         // Make sure that none of the corners overlap with any of the other boxes
@@ -382,12 +382,19 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
         level.aabbs.push_back(AABB{
             .pos = { x, y },
             .width = width,
-            .height = height
+            .height = height,
         });
 
         if (rand() % 8 == 0 && i > 1) {
             // RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 10, false, false, {0, 0});
             RopeCreate(rs, level.aabbs[i].pos - V2d(40.0, 80.0), level.aabbs[i].pos, 10, false, true, {0, 0});
+        }
+
+        if (rand() % 4 == 0) {
+            level.circles.push_back(Circle{
+                .pos = { x - 20.0, y - 20.0 },
+                .radius = 20.0,
+            });
         }
     }
 }

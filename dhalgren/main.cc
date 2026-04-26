@@ -44,26 +44,26 @@ void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, double dt) {
     camera.pos += (kid.pos - camera.pos) * dt * 2.0;
 }
 
-struct Circle {
+struct Cursor {
     V2d initial_pos;
     V2d pos;
     double radius;
     double timer;
 };
 
-void CircleUpdate(Circle &circle, Camera &camera, KeyState &ks, double dt) {
+void CursorUpdate(Cursor &cursor, Camera &camera, KeyState &ks, double dt) {
     V2d mouse_pos = CalculateMousePosInWorld(camera, ks, dt);
 
     if (ks.mlc == 0) {
-        circle.timer = 0;
-        circle.radius = 50.0;
+        cursor.timer = 0;
+        cursor.radius = 50.0;
     } else if (ks.mlcp) {
-        circle.initial_pos = mouse_pos;
+        cursor.initial_pos = mouse_pos;
     } else if (ks.mlc) {
-        // circle.pos = circle.initial_pos + (mouse_pos - circle.initial_pos) * 0.9;
-        circle.pos = mouse_pos;
-        circle.timer += dt;
-        circle.radius = 50.0 + 200.0 / (circle.timer * 50.0 + 1.0);
+        // cursor.pos = cursor.initial_pos + (mouse_pos - cursor.initial_pos) * 0.9;
+        cursor.pos = mouse_pos;
+        cursor.timer += dt;
+        cursor.radius = 50.0 + 200.0 / (cursor.timer * 50.0 + 1.0);
     }
 }
 
@@ -86,18 +86,26 @@ void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture,
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
-void DrawBoxAtV2d(SdlState &sdl_state, Camera &camera, V2d pos, int width, int height) {
+void DrawBoxAtV2d(SdlState &sdl_state, Camera &camera, V2d pos, int width, int height, bool filled) {
     SDL_Rect sdl_rect;
     V2d transformed_pos = (pos - camera.pos) * camera.zoom;
     sdl_rect.x = transformed_pos.x + screenWidth / 2;
     sdl_rect.y = transformed_pos.y + screenHeight / 2;
     sdl_rect.w = width * camera.zoom;
     sdl_rect.h = height * camera.zoom;
+    if (filled) {
+        SDL_RenderFillRect(sdl_state.sdl_renderer, &sdl_rect);
+        return;
+    }
     SDL_RenderDrawRect(sdl_state.sdl_renderer, &sdl_rect);
 }
 
 void DrawAABB(SdlState &sdl_state, Camera &camera, AABB aabb) {
-    DrawBoxAtV2d(sdl_state, camera, aabb.pos, aabb.width, aabb.height);
+    DrawBoxAtV2d(sdl_state, camera, aabb.pos, aabb.width, aabb.height, false);
+}
+
+void DrawCircle(SdlState &sdl_state, Camera &camera, Circle circle) {
+    DrawBoxAtV2d(sdl_state, camera, circle.pos, circle.radius, circle.radius, true);
 }
 
 void DrawLine(SdlState &sdl_state, Camera &camera, V2d p1, V2d p2) {
@@ -111,7 +119,7 @@ void DrawExclamationPointAtV2d(SdlState &sdl_state, Camera &camera, V2d pos) {
     V2d p1 = pos - V2d(8.0, 8.0);
     V2d p2 = pos - V2d(4.0, 4.0);
     DrawLine(sdl_state, camera, p1, p2);
-    DrawBoxAtV2d(sdl_state, camera, pos, 1.0, 1.0);
+    DrawBoxAtV2d(sdl_state, camera, pos, 1.0, 1.0, false);
 }
 
 // Use this to fix frametimes: https://discourse.libsdl.org/t/poor-performance-of-sdl2-on-macos/28276/3
@@ -152,28 +160,62 @@ struct Game {
     // KidSprite kid_sprite;
     Camera camera;
     RopeState rs;
-    Circle circle;
+    Cursor cursor;
     Title title;
 
     SDL_Surface *title_sprite_surface = nullptr;
     SDL_Texture *title_sprite_texture = nullptr;
     SDL_Surface *space_sprite_surface = nullptr;
     SDL_Texture *space_sprite_texture = nullptr;
-    SDL_Surface *circle_sprite_surface = nullptr;
-    SDL_Texture *circle_sprite_texture = nullptr;
+    SDL_Surface *cursor_sprite_surface = nullptr;
+    SDL_Texture *cursor_sprite_texture = nullptr;
     SDL_Surface *exclamation_sprite_surface = nullptr;
     SDL_Texture *exclamation_sprite_texture = nullptr;
+    SDL_Texture *dither_texture = nullptr;
     int sprite_size;
 
     std::chrono::steady_clock::time_point end_of_update_clock;
 };
 
 void GameSpritesInitialize(Game &game) {
+    const int kPointCount = 4;
+
+    SDL_Point points[kPointCount];
+
     SdlSpriteLoad(game.title_sprite_surface, game.title_sprite_texture, game.sdl_state.sdl_renderer, "./img/title-simple.png");
     SdlSpriteLoad(game.space_sprite_surface, game.space_sprite_texture, game.sdl_state.sdl_renderer, "./img/press-space.png");
-    SdlSpriteLoad(game.circle_sprite_surface, game.circle_sprite_texture, game.sdl_state.sdl_renderer, "./img/circle.png");
+    SdlSpriteLoad(game.cursor_sprite_surface, game.cursor_sprite_texture, game.sdl_state.sdl_renderer, "./img/circle.png");
     SdlSpriteLoad(game.exclamation_sprite_surface, game.exclamation_sprite_texture, game.sdl_state.sdl_renderer, "./img/exclamation.png");
     game.sprite_size = 500;
+
+    // Create a dithering texture
+    // See this post for an explanation of how to create a transparent texture https://stackoverflow.com/a/24242631
+    // game.dither_texture = SDL_CreateTextureFromSurface(game.sdl_state.sdl_renderer, game.sdl_state.sdl_surface);
+    // if (!game.dither_texture) {
+    //     abort();
+    // }
+    game.dither_texture = SDL_CreateTexture(
+        game.sdl_state.sdl_renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
+        screenWidth,
+        screenHeight
+    );
+    SDL_SetTextureBlendMode(game.dither_texture, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawBlendMode(game.sdl_state.sdl_renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderTarget(game.sdl_state.sdl_renderer, game.dither_texture);
+    SDL_SetRenderDrawBlendMode(game.sdl_state.sdl_renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(game.sdl_state.sdl_renderer, 0, 0, 0, 0);
+    SDL_RenderClear(game.sdl_state.sdl_renderer);
+    SDL_SetRenderDrawColor(game.sdl_state.sdl_renderer, 0, 0, 0, 255);
+    for (int i = 0; i < screenWidth * screenHeight; i += kPointCount) {
+        points[0] = SDL_Point{ .x = (i + 0) % screenWidth, .y = (i + 0) / screenWidth };
+        points[1] = SDL_Point{ .x = (i + 1 + screenWidth) % screenWidth, .y = (i + 1 + screenWidth) / screenWidth };
+        points[2] = SDL_Point{ .x = (i + 2) % screenWidth, .y = (i + 2) / screenWidth };
+        points[3] = SDL_Point{ .x = (i + 2 + screenWidth) % screenWidth, .y = (i + 2 + screenWidth) / screenWidth };
+        SDL_RenderDrawPoints(game.sdl_state.sdl_renderer, points, 4);
+    }
+    SDL_SetRenderTarget(game.sdl_state.sdl_renderer, nullptr);
 }
 
 void title(void *vgame) {
@@ -264,7 +306,7 @@ void demo(void *vgame) {
     // KidSprite &kid_sprite = game->kid_sprite;
     Camera &camera = game->camera;
     RopeState &rs = game->rs;
-    Circle &circle = game->circle;
+    Cursor &cursor = game->cursor;
 
     SdlStatePollEvents(ks, cancel);
 
@@ -295,7 +337,7 @@ void demo(void *vgame) {
 
     LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks, dt), dt);
 
-    CircleUpdate(circle, camera, ks, dt);
+    CursorUpdate(cursor, camera, ks, dt);
 
     if (ks.mlcp) {
         if (V2d(ks.mx, ks.my).SqrMagnitude() < 40.0 * 40.0) {
@@ -341,13 +383,26 @@ void demo(void *vgame) {
     SDL_FillRect(sdl_state.sdl_surface, NULL, SDL_MapRGB(sdl_state.sdl_surface->format, 0, 0, 0));
 
     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
+    
+    for (auto &circle : level.circles) {
+        DrawCircle(sdl_state, camera, circle);
+    }
+    
+    // Drawing the dither on top of the clouds
+    {
+        src.x = src.y = 0;
+        src.w = screenWidth;
+        src.h = screenHeight;
+        dst = src;
+        DrawTextureAtV2d(sdl_state, camera, game->dither_texture, src, dst, 0, 0, camera.pos);
+    }
 
     // Drawing the kid star
     switch (kid.state) {
         case Kid::SPLAT:
             src.x = src.y = 0;
             src.h = src.w = 64;
-            dst.h = dst.w = 12;
+            dst.h = dst.w = 14;
             rnd_pos.x = rand() % 4;
             rnd_pos.y = rand() % 4;
             rnd_pos /= kid.state_timer + 1.0;
@@ -365,12 +420,12 @@ void demo(void *vgame) {
     // dst.h = dst.w = kid_sprite.size_dst;
     // DrawTextureAtV2d(sdl_state, camera, kid_sprite.active_sprite, src, dst, kid.vel.x < 0.0, kid.visual_angle, kid.visual_pos);
 
-    // Draw a circle where the mouse pointer is at
+    // Draw a cursor where the mouse pointer is at
     if (ks.mlc) {
         src.x = src.y = 0;
         src.h = src.w = game->sprite_size;
-        dst.h = dst.w = circle.radius * 2;
-        DrawTextureAtV2d(sdl_state, camera, game->circle_sprite_texture, src, dst, 0, 0, circle.pos);
+        dst.h = dst.w = cursor.radius * 2;
+        DrawTextureAtV2d(sdl_state, camera, game->cursor_sprite_texture, src, dst, 0, 0, cursor.pos);
     }
 
     // Drawing the aiming reticle
@@ -378,7 +433,7 @@ void demo(void *vgame) {
         kid.charge_started &&
         kid.charge_timer > 0.0) {
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 100, 100, 255);
-        DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height);
+        DrawBoxAtV2d(sdl_state, camera, kid.swing_reticle.pos, kid.swing_reticle.width, kid.swing_reticle.height, false);
         DrawLine(sdl_state, camera, kid.swing_anchor - V2d(8.0, 0.0), kid.swing_anchor + V2d(8.0, 0.0));
         DrawLine(sdl_state, camera, kid.swing_anchor - V2d(0.0, 8.0), kid.swing_anchor + V2d(0.0, 8.0));
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
@@ -386,7 +441,7 @@ void demo(void *vgame) {
 
     // Drawing the kid rope
     for (int i = 0; i < kSwingPoints - 1; ++i) {
-        DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[i], 2, 2);
+        DrawBoxAtV2d(sdl_state, camera, kid.swing_pos[i], 2, 2, false);
         DrawLine(sdl_state, camera, kid.swing_pos[i], kid.swing_pos[i + 1]);
     }
 
@@ -394,13 +449,13 @@ void demo(void *vgame) {
     for (int i = 0; i < kRopePointsTotal; ++i) {
         if (!rs.rope_points[i].active)
             continue;
-        DrawBoxAtV2d(sdl_state, camera, rs.rope_points[i].pos, 2, 2);
+        DrawBoxAtV2d(sdl_state, camera, rs.rope_points[i].pos, 2, 2, false);
         if (rs.rope_points[i].prev_neighbor_idx == -1)
             continue;
         DrawLine(sdl_state, camera, rs.rope_points[rs.rope_points[i].prev_neighbor_idx].pos, rs.rope_points[i].pos);
     }
 
-    DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2);
+    DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2, false);
 
     DrawAABB(sdl_state, camera, level.aabb);
 
@@ -418,8 +473,8 @@ void demo(void *vgame) {
     if (isct.exists) {
         // Draw level test line
         SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
-        DrawBoxAtV2d(sdl_state, camera, isct.intersection_point, 4, 4);
-        DrawBoxAtV2d(sdl_state, camera, isct.projection_point, 4, 4);
+        DrawBoxAtV2d(sdl_state, camera, isct.intersection_point, 4, 4, false);
+        DrawBoxAtV2d(sdl_state, camera, isct.projection_point, 4, 4, false);
         DrawLine(sdl_state, camera, isct.projection_point, isct.projection_point + isct.normal * 8.0);
     }
 

@@ -17,6 +17,12 @@ struct AABB {
     double height;
 };
 
+struct Circle {
+    V2d pos;
+    double radius;
+    double sqrRadius;
+};
+
 struct RopePoint {
     V2d pos;
     V2d pos_prev;
@@ -77,12 +83,6 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2);
 
 LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l);
 
-struct Chunk {
-    static const int kWidth = 800;
-    static const int kHeight = 600;
-    AABB aabb;
-};
-
 struct Level {
     enum State {
         READY_BOX,
@@ -101,12 +101,9 @@ struct Level {
 
     AABB aabb;
     std::vector<AABB> aabbs;
-    std::unordered_map<uint64_t, Chunk> chunk_map;
+
+    std::vector<Circle> circles;
 };
-
-uint64_t LevelChunkMapIndex(double x, double y);
-
-void LevelChunkMapUpdate(AABB aabb, int aabb_index);
 
 void LevelInitialize(Level &level, int window_x, int window_y);
 
