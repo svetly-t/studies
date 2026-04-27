@@ -67,22 +67,61 @@ void CursorUpdate(Cursor &cursor, Camera &camera, KeyState &ks, double dt) {
     }
 }
 
+struct DrawTexture{
+    enum Space {
+        WORLDSPACE,
+        SCREENSPACE,
+    };
+    Space space = Space::WORLDSPACE;
+    SDL_Texture *texture = nullptr;
+    SDL_Rect src;
+    SDL_Rect dst;
+    V2d pos;
+    double angle = 0;
+    bool flip = false;
+};
+
 // The width and height are the box size in pixels at zoom = 1.0.
-void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, SDL_Texture *texture, SDL_Rect src, SDL_Rect dst, bool flip, double angle, V2d pos) {
+void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, DrawTexture draw_texture) {
     SDL_RendererFlip renderer_flip;
     V2d transformed_pos;
     V2d offset_to_center;
-    offset_to_center.x = dst.w / 2.0;
-    offset_to_center.y = dst.h / 2.0;
-    transformed_pos = (pos - offset_to_center - camera.pos) * camera.zoom;
-    dst.x = transformed_pos.x + screenWidth / 2;
-    dst.y = transformed_pos.y + screenHeight / 2;
-    dst.w = dst.w * camera.zoom;
-    dst.h = dst.h * camera.zoom;
-    renderer_flip = SDL_RendererFlip::SDL_FLIP_NONE;
-    if (flip)
-        renderer_flip = SDL_RendererFlip::SDL_FLIP_HORIZONTAL;
-    SDL_RenderCopyEx(sdl_state.sdl_renderer, texture, &src, &dst, angle, nullptr, renderer_flip);
+
+    SDL_Rect &src = draw_texture.src;
+    SDL_Rect &dst = draw_texture.dst;
+    V2d &pos = draw_texture.pos;
+    double &angle = draw_texture.angle;
+    bool &flip = draw_texture.flip;
+    
+    switch (draw_texture.space) {
+        case DrawTexture::WORLDSPACE:
+            offset_to_center.x = dst.w / 2.0;
+            offset_to_center.y = dst.h / 2.0;
+            transformed_pos = (pos - offset_to_center - camera.pos) * camera.zoom;
+            dst.x = transformed_pos.x + screenWidth / 2;
+            dst.y = transformed_pos.y + screenHeight / 2;
+            dst.w = dst.w * camera.zoom;
+            dst.h = dst.h * camera.zoom;
+            break;
+        case DrawTexture::SCREENSPACE:
+            offset_to_center.x = dst.w / 2.0;
+            offset_to_center.y = dst.h / 2.0;
+            transformed_pos = (pos - offset_to_center);
+            dst.x = transformed_pos.x + screenWidth / 2;
+            dst.y = transformed_pos.y + screenHeight / 2;
+            break;
+    }
+
+    switch (draw_texture.flip) {
+        case true:
+            renderer_flip = SDL_RendererFlip::SDL_FLIP_NONE;
+            break;
+        case false:
+            renderer_flip = SDL_RendererFlip::SDL_FLIP_HORIZONTAL;
+            break; 
+    }
+
+    SDL_RenderCopyEx(sdl_state.sdl_renderer, draw_texture.texture, &src, &dst, angle, nullptr, renderer_flip);
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
@@ -190,6 +229,7 @@ void GameSpritesInitialize(Game &game) {
 
     // Create a dithering texture
     // See this post for an explanation of how to create a transparent texture https://stackoverflow.com/a/24242631
+    // See this post for initializing a vector in c++11 https://stackoverflow.com/a/17663236
     // game.dither_texture = SDL_CreateTextureFromSurface(game.sdl_state.sdl_renderer, game.sdl_state.sdl_surface);
     // if (!game.dither_texture) {
     //     abort();
@@ -208,12 +248,14 @@ void GameSpritesInitialize(Game &game) {
     SDL_SetRenderDrawColor(game.sdl_state.sdl_renderer, 0, 0, 0, 0);
     SDL_RenderClear(game.sdl_state.sdl_renderer);
     SDL_SetRenderDrawColor(game.sdl_state.sdl_renderer, 0, 0, 0, 255);
-    for (int i = 0; i < screenWidth * screenHeight; i += kPointCount) {
-        points[0] = SDL_Point{ .x = (i + 0) % screenWidth, .y = (i + 0) / screenWidth };
-        points[1] = SDL_Point{ .x = (i + 1 + screenWidth) % screenWidth, .y = (i + 1 + screenWidth) / screenWidth };
-        points[2] = SDL_Point{ .x = (i + 2) % screenWidth, .y = (i + 2) / screenWidth };
-        points[3] = SDL_Point{ .x = (i + 2 + screenWidth) % screenWidth, .y = (i + 2 + screenWidth) / screenWidth };
-        SDL_RenderDrawPoints(game.sdl_state.sdl_renderer, points, 4);
+    for (int i = 0; i < screenHeight; i += 2) {
+        for (int j = 0; j < screenWidth; j += kPointCount) {
+            points[0] = SDL_Point{ .x = (j + 0), .y = (i + 0) };
+            points[1] = SDL_Point{ .x = (j + 1), .y = (i + 1) };
+            points[2] = SDL_Point{ .x = (j + 2), .y = (i + 0) };
+            points[3] = SDL_Point{ .x = (j + 3), .y = (i + 1) };
+            SDL_RenderDrawPoints(game.sdl_state.sdl_renderer, points, kPointCount);
+        }
     }
     SDL_SetRenderTarget(game.sdl_state.sdl_renderer, nullptr);
 }
@@ -290,6 +332,7 @@ void demo(void *vgame) {
     bool cancel = false;
     double meters_per_pixel = 0.1;
     KidUpdateContext kid_update_ctx;
+    DrawTexture texture;
     V2d mouse_pos;
     V2d rnd_pos;
     SDL_Rect src;
@@ -390,23 +433,29 @@ void demo(void *vgame) {
     
     // Drawing the dither on top of the clouds
     {
-        src.x = src.y = 0;
-        src.w = screenWidth;
-        src.h = screenHeight;
-        dst = src;
-        DrawTextureAtV2d(sdl_state, camera, game->dither_texture, src, dst, 0, 0, camera.pos);
+        texture.src.x = texture.src.y = 0;
+        texture.src.w = screenWidth;
+        texture.src.h = screenHeight;
+        texture.dst = texture.src;
+        texture.pos = V2d(0, 0);
+        texture.texture = game->dither_texture;
+        texture.space = DrawTexture::SCREENSPACE;
+        DrawTextureAtV2d(sdl_state, camera, texture);
     }
 
     // Drawing the kid star
     switch (kid.state) {
         case Kid::SPLAT:
-            src.x = src.y = 0;
-            src.h = src.w = 64;
-            dst.h = dst.w = 14;
+            texture.src.x = texture.src.y = 0;
+            texture.src.h = texture.src.w = 64;
+            texture.dst.h = texture.dst.w = 14;
             rnd_pos.x = rand() % 4;
             rnd_pos.y = rand() % 4;
             rnd_pos /= kid.state_timer + 1.0;
-            DrawTextureAtV2d(sdl_state, camera, game->exclamation_sprite_texture, src, dst, 0, 0, kid.visual_pos + rnd_pos);
+            texture.pos = kid.visual_pos + rnd_pos;
+            texture.texture = game->exclamation_sprite_texture;
+            texture.space = DrawTexture::WORLDSPACE;
+            DrawTextureAtV2d(sdl_state, camera, texture);
             break;
         default:
             for (int i = 0; i < 4; ++i)
@@ -422,10 +471,13 @@ void demo(void *vgame) {
 
     // Draw a cursor where the mouse pointer is at
     if (ks.mlc) {
-        src.x = src.y = 0;
-        src.h = src.w = game->sprite_size;
-        dst.h = dst.w = cursor.radius * 2;
-        DrawTextureAtV2d(sdl_state, camera, game->cursor_sprite_texture, src, dst, 0, 0, cursor.pos);
+        texture.src.x = texture.src.y = 0;
+        texture.src.h = texture.src.w = game->sprite_size;
+        texture.dst.h = texture.dst.w = cursor.radius * 2;
+        texture.pos = cursor.pos;
+        texture.texture = game->cursor_sprite_texture;
+        texture.space = DrawTexture::WORLDSPACE;
+        DrawTextureAtV2d(sdl_state, camera, texture);
     }
 
     // Drawing the aiming reticle
