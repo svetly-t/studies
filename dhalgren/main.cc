@@ -112,13 +112,10 @@ void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, DrawTexture draw_text
             break;
     }
 
-    switch (draw_texture.flip) {
-        case true:
-            renderer_flip = SDL_RendererFlip::SDL_FLIP_NONE;
-            break;
-        case false:
-            renderer_flip = SDL_RendererFlip::SDL_FLIP_HORIZONTAL;
-            break; 
+    if (draw_texture.flip) {
+        renderer_flip = SDL_RendererFlip::SDL_FLIP_NONE;
+    } else if (!draw_texture.flip) {
+        renderer_flip = SDL_RendererFlip::SDL_FLIP_HORIZONTAL;
     }
 
     SDL_RenderCopyEx(sdl_state.sdl_renderer, draw_texture.texture, &src, &dst, angle, nullptr, renderer_flip);
@@ -217,15 +214,31 @@ struct Game {
 };
 
 void GameSpritesInitialize(Game &game) {
-    const int kPointCount = 4;
-
-    SDL_Point points[kPointCount];
-
     SdlSpriteLoad(game.title_sprite_surface, game.title_sprite_texture, game.sdl_state.sdl_renderer, "./img/title-simple.png");
     SdlSpriteLoad(game.space_sprite_surface, game.space_sprite_texture, game.sdl_state.sdl_renderer, "./img/press-space.png");
     SdlSpriteLoad(game.cursor_sprite_surface, game.cursor_sprite_texture, game.sdl_state.sdl_renderer, "./img/circle.png");
     SdlSpriteLoad(game.exclamation_sprite_surface, game.exclamation_sprite_texture, game.sdl_state.sdl_renderer, "./img/exclamation.png");
     game.sprite_size = 500;
+}
+
+void GameDitherInitialize(Game &game) {
+    const int kPointsY = 5;
+    const int kPointsX = 5;
+    const int kPointCount = kPointsX * kPointsY;
+
+    int pattern[kPointsY][kPointsX] = {
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 1}
+    };
+
+    int x;
+    int y;
+    int idx;
+
+    SDL_Point points[kPointCount];
 
     // Create a dithering texture
     // See this post for an explanation of how to create a transparent texture https://stackoverflow.com/a/24242631
@@ -248,13 +261,17 @@ void GameSpritesInitialize(Game &game) {
     SDL_SetRenderDrawColor(game.sdl_state.sdl_renderer, 0, 0, 0, 0);
     SDL_RenderClear(game.sdl_state.sdl_renderer);
     SDL_SetRenderDrawColor(game.sdl_state.sdl_renderer, 0, 0, 0, 255);
-    for (int i = 0; i < screenHeight; i += 2) {
-        for (int j = 0; j < screenWidth; j += kPointCount) {
-            points[0] = SDL_Point{ .x = (j + 0), .y = (i + 0) };
-            points[1] = SDL_Point{ .x = (j + 1), .y = (i + 1) };
-            points[2] = SDL_Point{ .x = (j + 2), .y = (i + 0) };
-            points[3] = SDL_Point{ .x = (j + 3), .y = (i + 1) };
-            SDL_RenderDrawPoints(game.sdl_state.sdl_renderer, points, kPointCount);
+    for (int i = 0; i < screenHeight; i += kPointsY) {
+        for (int j = 0; j < screenWidth; j += kPointsX) {
+            idx = 0;
+            for (int c = 0; c < kPointCount; ++c) {
+                y = c / kPointsX;
+                x = c % kPointsX;
+                if (pattern[y][x]) {
+                    points[idx++] = SDL_Point{ .x = (j + x), .y = (i + y) };
+                }
+            }
+            SDL_RenderDrawPoints(game.sdl_state.sdl_renderer, points, idx);
         }
     }
     SDL_SetRenderTarget(game.sdl_state.sdl_renderer, nullptr);
@@ -413,6 +430,7 @@ void demo(void *vgame) {
             //SDL_RenderSetLogicalSize(sdl_state.sdl_renderer, screenWidth, screenHeight);
 
             GameSpritesInitialize(*game);
+            GameDitherInitialize(*game);
         }
     }
 
@@ -558,6 +576,7 @@ int main(int argc, char **argv) {
 
     SdlStateInitialize(game.sdl_state, screenWidth, screenHeight);
     GameSpritesInitialize(game);
+    GameDitherInitialize(game);
     // KidSpriteInitialize(game.kid_sprite, game.sdl_state.sdl_renderer);
     KidInitialize(game.kid);
     LevelInitialize(game.level, screenWidth, screenHeight);
