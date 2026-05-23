@@ -56,6 +56,15 @@ struct RopeState {
     // This is passed from the RopeState back to the kid;
     // it is the mid-integration velocity of the point holding the kid
     V2d kid_vel;
+
+    enum State {
+        UNSTRETCHED,
+        STRETCHED,
+        UNROLLING,
+        AFTER_STRETCH
+    };
+    State kid_stretch_state;
+    double kid_stretch_timer;
 };
 
 int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev);

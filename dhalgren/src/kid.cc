@@ -152,14 +152,62 @@ void KidRopeStart(Kid &kid, KidUpdateContext ctx, V2d endpoint) {
 }
 
 void KidRopeUpdate(Kid &kid, KidUpdateContext ctx, double acceleration_multiplier) {
+    double dt = ctx.dt;
     KeyState &ks = *(ctx.ks);
+    KeyState &ks_prev = *(ctx.ks_prev);
     RopeState &rs = *(ctx.rs);
+    V2d root_to_point_normalized =
+        (rs.rope_points[kRopePoints].pos - rs.rope_points[kRopePoints + kRopeLength - 1].pos).
+        Normalized();
+    V2d input_normalized = V2d(ks.x, ks.y).Normalized();
+
+    double unroll_speed;
 
     rs.kid_gravity = 80.0 + abs(kid.vel.Normalized().Cross(V2d(0, 1))) * 160.0;
-    rs.kid_acc = V2d(ks.x, ks.y).Normalized() * 20.0 * acceleration_multiplier;
+    rs.kid_acc = input_normalized * 40.0 * acceleration_multiplier;
     kid.vel = rs.kid_vel;
     kid.prev_pos = rs.rope_points[kRopePoints].pos_prev;
     kid.pos = rs.rope_points[kRopePoints].pos;
+
+    // If the player holds direction opposite to X-velocity,
+    // cancel out the lateral movement, and manually unroll in that direction
+    switch (rs.kid_stretch_state) {
+        case RopeState::UNSTRETCHED:
+            if (ks.x * kid.vel.x < 0 && ks.x * root_to_point_normalized.x > 0) {
+                rs.kid_stretch_state = RopeState::UNROLLING;
+                break;
+            }
+            if (ks.y == 1 && ks.spc == 1) {
+                rs.kid_stretch_state = RopeState::STRETCHED;
+                break;
+            }
+            rs.kid_stretch_timer = 0;
+            break;
+        case RopeState::UNROLLING:
+            if (ks.x * ks_prev.x <= 0) {
+                rs.kid_stretch_state = RopeState::UNSTRETCHED;
+                break;
+            }
+            unroll_speed = 3.0;
+            // rs.rope_points[kRopePoints].pos_prev -= root_to_point_normalized * abs(root_to_point_normalized * V2d(ks.x, 0)) * unroll_speed * dt;
+            kid.pos += root_to_point_normalized * abs(root_to_point_normalized * V2d(ks.x, 0)) * unroll_speed * dt;
+            rs.rope_points[kRopePoints].pos += root_to_point_normalized * abs(root_to_point_normalized * V2d(ks.x, 0)) * unroll_speed * dt;
+            // // Below section causes player to bounce
+            // rs.rope_points[kRopePoints].pos_prev.x = kid.pos.x;
+            // kid.pos.x += ks.x * 15.0 * dt;
+            // rs.rope_points[kRopePoints].pos.x += ks.x * 15.0 * dt;
+            break;
+        case RopeState::STRETCHED:
+            if (!(ks.y == 1 && ks.spc == 1)) {
+                rs.kid_stretch_state = RopeState::AFTER_STRETCH;
+                break;
+            }
+            rs.kid_stretch_timer += dt;
+            break;
+        case RopeState::AFTER_STRETCH:
+            rs.kid_stretch_timer = 0;
+            break;
+    }
 }
 
 void KidStarUpdate(Kid &kid, KidUpdateContext ctx, double constraint_weight) {
@@ -452,6 +500,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                     RopeCreateAndLink(rs, *rp, kid.pos, kRopeLength, true, kid.prev_pos);
                 } else {
                     RopeCreate(rs, kid.swing_anchor, kid.pos, kRopeLength, true, false, kid.prev_pos);
+                    rs.kid_stretch_state = RopeState::UNSTRETCHED;
                 }
                 KidSwitchState(kid, Kid::SWING);
                 break;
@@ -514,7 +563,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             KidRopeUpdate(kid, ctx, touch_swing_acceleration_multiplier);
             KidStarUpdate(kid, ctx, 0.2);
             KidVisualUpdate(kid, ctx, false);
-            if (ks_prev.spcp == 1 || touch_release_event) {
+            if (ks.y != 1 && (ks_prev.spcp == 1 || touch_release_event)) {
                 // Web zip code here
                 // ks_dir = V2d(ks.x, ks.y);
                 // rs_dir = rs.rope_points[kRopePoints + kRopeLength - 1].pos - kid.pos;

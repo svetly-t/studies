@@ -118,6 +118,7 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
 // it's done this way to allow new rope points to reference ones that already exist,
 // e.g. ones that are part of a laundry line
 // Returns the index of the last rope point (e.g. the tip of the rope -- the point furthest from the player)
+// kRopePoints is generally the point that holds the player
 // Returns -1 if the rope cannot be created
 int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev) {
     V2d pos;
@@ -217,6 +218,8 @@ void RopeStateUpdate(RopeState &rs, double dt) {
     V2d acc;
     V2d dir;
 
+    V2d root_to_point;
+
     int prev_neighbor_idx, prev_neighbor_neighbor_idx;
     int next_neighbor_idx;
     double w1, w2;
@@ -236,10 +239,22 @@ void RopeStateUpdate(RopeState &rs, double dt) {
 
         if (rope_points[i].prev_neighbor_idx == -1)
             continue;
+
+        root_to_point = rope_points[kRopePoints].pos - rope_points[i].pos;
         
         prev_neighbor_idx = rope_points[i].prev_neighbor_idx;
         prev_neighbor_dist = rope_points[i].prev_neighbor_dist;
-        
+
+        // This block only applies to the kid's ropePoints
+        if (i >= kRopePoints) {
+            if (rs.kid_stretch_state == RopeState::AFTER_STRETCH) {
+                // prev_neighbor_dist = rope_points[i].prev_neighbor_dist - rs.kid_stretch_timer * 16.0;
+                // if (prev_neighbor_dist < 0.1)
+                //     prev_neighbor_dist = 0.1;
+                prev_neighbor_dist = rope_points[i].prev_neighbor_dist * 0.5;
+            }
+        }
+
         next_neighbor_idx = rope_points[i].next_neighbor_idx;
         next_neighbor_dist = rope_points[i].next_neighbor_dist;
 
@@ -247,8 +262,21 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             w1 = 0.0;
             w2 = 1.0;
         } else if (rope_points[prev_neighbor_idx].holding_player) {
-            w1 = 0.025;
-            w2 = 0.975;
+            switch (rs.kid_stretch_state) {
+                // case RopeState::STRETCHED:
+                //     w1 = 0.025 - rs.kid_stretch_timer;
+                //     if (w1 < 0.01) {
+                //         w1 = 0.01;
+                //     }
+                //     w2 = 1.0 - w1;
+                //     break;
+                case RopeState::UNROLLING:
+                    w1 = 0.1;
+                    w2 = 0.9;
+                default:
+                    w1 = 0.025;
+                    w2 = 0.975;
+            }
         } else {
             w1 = 0.5;
             w2 = 0.5;
@@ -294,14 +322,21 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         acc = (rope_points[i].pos - rope_points[i].pos_prev);
 
         if (rope_points[i].holding_player) {
-            if ((rope_points[i].pos - rope_points[kRopePoints].pos).Magnitude() > 
-                 rope_points[i].prev_neighbor_dist * kRopeLength) {
-                    acc.y += rs.kid_gravity;
-                    acc += rs.kid_acc;
-                } else {
-                    // Makes the kid artificially heavier to give the swing more heft
-                    acc.y += 2.0 * gravity;
-                }
+            if (root_to_point.Magnitude() > rope_points[i].prev_neighbor_dist * kRopeLength) {
+                // if (rs.kid_stretch) {
+                //     rope_points[i].pos =
+                //         rope_points[i + 1 /* should be next_neighbor_idx */].pos +
+                //         root_to_point.Normalized() * (rope_points[i].prev_neighbor_dist + rs.kid_stretch_timer);
+                // }
+                acc.y += rs.kid_gravity;
+                acc += rs.kid_acc;
+            } else {
+                // Makes the kid artificially heavier to give the swing more heft
+                acc.y += 2.0 * gravity;
+            }
+            if (rs.kid_stretch_state == RopeState::STRETCHED) {
+                acc += root_to_point.Normalized() * 80.0;
+            }
         } else {
             acc.y += gravity;
         }
