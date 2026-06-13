@@ -127,8 +127,6 @@ V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx, RopePoint *&rp) {
     for (int i = 0; i < kRopePoints; ++i) {
         if (!rs.rope_points[i].active)
             continue;
-        if (!rs.rope_points[i].pole_tip)
-            continue;
         if (AABBToPointOverlap(kid.swing_reticle, rs.rope_points[i].pos)) {
             rp = &rs.rope_points[i];
             return rs.rope_points[i].pos;
@@ -499,7 +497,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
                 if (rp != nullptr) {
                     RopeCreateAndLink(rs, *rp, kid.pos, kRopeLength, true, kid.prev_pos);
                 } else {
-                    RopeCreate(rs, kid.swing_anchor, kid.pos, kRopeLength, true, false, kid.prev_pos);
+                    RopeCreate(rs, kid.swing_anchor, kid.pos, kRopeLength, true, kid.prev_pos);
                     rs.kid_stretch_state = RopeState::UNSTRETCHED;
                 }
                 KidSwitchState(kid, Kid::SWING);

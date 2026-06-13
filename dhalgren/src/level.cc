@@ -120,7 +120,7 @@ LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l) {
 // Returns the index of the last rope point (e.g. the tip of the rope -- the point furthest from the player)
 // kRopePoints is generally the point that holds the player
 // Returns -1 if the rope cannot be created
-int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev) {
+int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
     V2d pos;
     double dist;
     double total_dist;
@@ -150,7 +150,6 @@ int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_playe
         rope_points[rope_point_idx + i].next_neighbor_idx = -1;
         rope_points[rope_point_idx + i].next_neighbor_dist = dist;
         rope_points[rope_point_idx + i].active = true;
-        rope_points[rope_point_idx + i].pole = pole;
         rope_points[rope_point_idx + i].fixed = false;
         rope_points[rope_point_idx + i].holding_player = false;
         if (i > 0) {
@@ -161,12 +160,6 @@ int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_playe
     if (!holding_player) {
         rope_points[rope_point_idx].fixed = true;
         rope_points[rope_point_idx + last_point_idx].fixed = true;
-    }
-
-    if (pole) {
-        rope_points[rope_point_idx].fixed = true;
-        rope_points[rope_point_idx + last_point_idx].fixed = false;
-        rope_points[rope_point_idx + last_point_idx].pole_tip = true;
     }
 
     if (holding_player) {
@@ -185,7 +178,7 @@ int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_playe
 int RopeCreateAndLink(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
     int new_rope_tip_idx;
 
-    new_rope_tip_idx = RopeCreate(rs, p2.pos, p1, num_points, holding_player, false, holding_player_pos_prev); 
+    new_rope_tip_idx = RopeCreate(rs, p2.pos, p1, num_points, holding_player, holding_player_pos_prev); 
 
     if (new_rope_tip_idx == -1)
         return -1;
@@ -204,8 +197,6 @@ void RopeStateInitialize(RopeState &rs) {
 
     for (int i = 0; i < kRopePointsTotal; ++i) {
         rope_points[i].fixed = false;
-        rope_points[i].pole = false;
-        rope_points[i].pole_tip = false;
         rope_points[i].active = false;
         rope_points[i].holding_player = false;
         rope_points[i].prev_neighbor_idx = -1;
@@ -286,7 +277,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         }
         singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
 
-        // This is only evaluated if the kid rope is connected to another RopePoint, i.e. to the top of a pole
+        // This is only evaluated if the kid rope is connected to another RopePoint
         // Otherwise next_neighbor_idx is generally -1
         if (next_neighbor_idx != -1) {
             w1 = 0.8;
@@ -294,18 +285,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             singleRopeConstraint(rope_points[i].pos, rope_points[next_neighbor_idx].pos, w1, w2, next_neighbor_dist);
         }
 
-        if (rope_points[i].pole) {
-            prev_neighbor_neighbor_idx = rope_points[prev_neighbor_idx].prev_neighbor_idx;
-            if (prev_neighbor_neighbor_idx == -1) {
-                dir = V2d(0, -1);
-            } else {
-                dir = rope_points[i].pos - rope_points[prev_neighbor_neighbor_idx].pos;
-                dir = dir.Normalized();
-            }
-            singlePoleConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, dir, w1, w2, prev_neighbor_dist);
-        } else {
-            singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
-        }
+        singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
     }
 
     gravity = 80.0;
@@ -422,7 +402,8 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
 
         if (rand() % 8 == 0 && i > 1) {
             // RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 10, false, false, {0, 0});
-            RopeCreate(rs, level.aabbs[i].pos - V2d(40.0, 80.0), level.aabbs[i].pos, 10, false, true, {0, 0});
+            // Old pole creation logic:
+            // RopeCreate(rs, level.aabbs[i].pos - V2d(40.0, 80.0), level.aabbs[i].pos, 10, false, true, {0, 0});
         }
 
         if (rand() % 4 == 0) {

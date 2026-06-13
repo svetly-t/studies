@@ -33,9 +33,6 @@ struct RopePoint {
     int next_neighbor_idx;
     double next_neighbor_dist;
 
-    bool pole;
-    bool pole_tip;
-
     bool fixed;
     bool holding_player;
     bool active;
@@ -67,7 +64,7 @@ struct RopeState {
     double kid_stretch_timer;
 };
 
-int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, bool pole, V2d holding_player_pos_prev);
+int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
 
 int RopeCreateAndLink(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
 

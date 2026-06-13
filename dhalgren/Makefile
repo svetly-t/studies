@@ -1,113 +1,57 @@
-## Thanks GPT and this StackOverflow:
-## https://stackoverflow.com/questions/30573481/how-to-write-a-makefile-with-separate-source-and-header-directories
+# Writing the Makefile from scratch to avoid AI.
+# I don't want any of that smoke.
+# Heavily leaning on:
+# https://stackoverflow.com/questions/30573481/how-to-write-a-makefile-with-separate-source-and-header-directories
+# https://www3.ntu.edu.sg/home/ehchua/programming/cpp/gcc_make.html
+# https://stackoverflow.com/questions/28285804/how-do-i-create-a-makefile-for-sdl2-c-on-windows
 
-# =====================
-# Compilers
-# =====================
-CXX := g++
-EMXX := emcc
-
-# =====================
-# Common flags
-# =====================
-CXXFLAGS := -Iinclude -std=c++17 -g
-LDFLAGS :=
-LDLIBS := -lSDL2main -lSDL2 -lSDL2_image
-
-# =====================
-# Windows flags
-# =====================
-WIN_CXXFLAGS := -I/mingw64/include
-WIN_LDFLAGS := -L/mingw64/lib
-WIN_LDLIBS := -lmingw32 $(LDLIBS)
-
-# =====================
-# Emscripten flags
-# =====================
-EMCXXFLAGS := -Iinclude -std=c++17 \
-              -sUSE_SDL=2 \
-			  -sUSE_SDL_IMAGE=2 \
-              -sALLOW_MEMORY_GROWTH=1 \
-			  -sASSERTIONS \
-			  -s SDL2_IMAGE_FORMATS='["png"]' \
-			  -O3 \
-			  --embed-file=./img/title-simple.png@/img/title-simple.png \
-			  --embed-file=./img/circle.png@/img/circle.png \
-			  --embed-file=./img/press-space.png@/img/press-space.png \
-			  --shell-file emcc-shell.html
-EMLDFLAGS :=
-EMTARGET := index.html
-EMBUILDDIR := webbuild
-
-# =====================
-# Files and directories
-# =====================
 SRC_DIR := src
 OBJ_DIR := obj
-EM_OBJ_DIR := obj-em
-SRCS := main.cc $(wildcard $(SRC_DIR)/*.cc)
-OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
-EM_OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(EM_OBJ_DIR)/%.o)
-TARGET := kid
 
-# =====================
-# Targets
-# =====================
-all: $(TARGET)
+EXE := kid
+SRC := $(wildcard $(SRC_DIR)/*.cc)
+OBJ := $(SRC:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+CXX := g++
+CXXFLAGS := -std=c++11 -g -Iinclude -MMD -MP
+LDFLAGS := -lSDL2main -lSDL2 -lSDL2_image
 
-# Native objects
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc
-	mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+.PHONY: all clean
 
-# ---------------------
-# Windows build
-# ---------------------
-win: CXXFLAGS += $(WIN_CXXFLAGS)
-win: LDFLAGS  += $(WIN_LDFLAGS)
-win: LDLIBS   := $(WIN_LDLIBS)
-win: clean $(TARGET)
+all: $(EXE)
 
-# ---------------------
-# Emscripten build
-# ---------------------
-web: $(EMTARGET)
+$(EXE): $(OBJ)
+	$(CXX) $^ $(LDLIBS) -o $@ $(LDFLAGS)
 
-$(EMTARGET): $(EM_OBJS)
-	$(EMXX) $(EMCXXFLAGS) $(EMLDFLAGS) -o $@ $^
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(CFLAGS) -c $< -o $@
 
-$(EM_OBJ_DIR)/%.o: $(SRC_DIR)/%.cc
-	mkdir -p $(EM_OBJ_DIR)
-	$(EMXX) $(EMCXXFLAGS) -c $< -o $@
+$(OBJ_DIR):
+	mkdir -p $@
 
-#
-# Emscripten packaging
-#
+-include $(OBJ:.o=.d) # The dash silences errors when files don't exist (yet)
 
-webzip: web
-	rm -rf $(EMBUILDDIR)
-	mkdir $(EMBUILDDIR)
-	mv index.html index.js index.wasm $(EMBUILDDIR)
-	zip -r $(EMBUILDDIR).zip $(EMBUILDDIR)
-
-#
-# Localhost
-#
-
-force-latest-branch:
-	git checkout
-	git reset --hard @{u}
-
-force-build: force-latest-branch web
-
-lh: force-build
-	python -m http.server 8000
-
-# =====================
-# Cleanup
-# =====================
 clean:
-	rm -rf $(OBJ_DIR) $(EM_OBJ_DIR) $(TARGET) $(EMTARGET)
+	rm -rf obj/* kid
+
+# // Source - https://stackoverflow.com/q/28285804
+# // Posted by PandaConda, modified by community. See post 'Timeline' for change history
+# // Retrieved 2026-06-13, License - CC BY-SA 3.0
+
+# CXX = g++
+# CXXFLAGS = -std=c++0x -g -O3 -w -Wl,-subsystem,windows
+# INCLFLAGS = -IC:\Libraries\i686-w64-mingw32\include\SDL2
+# LDFLAGS = -LC:\Libraries\i686-w64-mingw32\lib -lmingw32 -lSDL2main -lSDL2
+# OBJECTS = main.o
+# TARGET = 1_hellosdl
+
+# $(TARGET) : $(OBJECTS)
+#     $(CXX) $(INCLFLAGS) $(LDFLAGS) $(CXXFLAGS) -o $(TARGET) $(OBJECTS)
+
+# main.o :
+
+# clean:
+#     rm -rf $(OBJECTS) $(TARGET)
+
+# remake:
+#     clean $(TARGET)
