@@ -14,7 +14,15 @@ OBJ := $(SRC:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
 
 CXX := g++
 CXXFLAGS := -std=c++11 -g -Iinclude -MMD -MP
-LDFLAGS := -lSDL2main -lSDL2 -lSDL2_image
+BASELDFLAGS := -lSDL2main -lSDL2 -lSDL2_image
+
+# If the builtin OS variable contains "Windows",
+# then prepend lmingw32 to the libraries
+ifeq ($(shell echo "$(OS)" | grep -oe Windows), Windows)
+	LDFLAGS=-lmingw32 $(BASELDFLAGS)
+else
+	LDFLAGS=$(BASELDFLAGS)
+endif
 
 .PHONY: all clean
 
