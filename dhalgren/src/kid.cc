@@ -1,7 +1,9 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "collisions.h"
 #include "kid.h"
+#include "rope.h"
 #include "utilities.h"
 
 bool TouchEventNear(V2d final, V2d initial, double mag) {

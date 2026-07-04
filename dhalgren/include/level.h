@@ -2,92 +2,11 @@
 
 #include "v2d.h"
 #include "sdl_state.h"
+#include "collisions.h"
+#include "rope.h"
 
 #include <unordered_map>
 #include <vector>
-
-struct Line {
-    V2d p1;
-    V2d p2;
-};
-
-struct AABB {
-    V2d pos;
-    double width;
-    double height;
-};
-
-struct Circle {
-    V2d pos;
-    double radius;
-    double sqrRadius;
-};
-
-struct RopePoint {
-    V2d pos;
-    V2d pos_prev;
-
-    int prev_neighbor_idx;
-    double prev_neighbor_dist;
-
-    int next_neighbor_idx;
-    double next_neighbor_dist;
-
-    bool fixed;
-    bool holding_player;
-    bool active;
-};
-
-const int kRopeLength = 10;
-const int kRopePoints = kRopeLength * 10;
-const int kRopePointsTotal = 128;
-
-struct RopeState {
-    int rope_point_idx;
-    RopePoint rope_points[kRopePointsTotal];
-
-    // These get passed from the KidUpdate to the RopeUpdate
-    // depending on length of rope + KeyState
-    double kid_gravity;
-    V2d kid_acc;
-    // This is passed from the RopeState back to the kid;
-    // it is the mid-integration velocity of the point holding the kid
-    V2d kid_vel;
-
-    enum State {
-        UNSTRETCHED,
-        STRETCHED,
-        UNROLLING,
-        AFTER_STRETCH
-    };
-    State kid_stretch_state;
-    double kid_stretch_timer;
-};
-
-int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
-
-int RopeCreateAndLink(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
-
-void RopeStateInitialize(RopeState &rope_state);
-
-void RopeStateUpdate(RopeState &rope_state, double dt);
-
-bool AABBToPointOverlap(AABB &aabb, V2d final);
-
-bool AABBToAABBOverlap(AABB target, AABB sweep, V2d &overlap);
-
-struct LineToLineIntersection {
-    bool exists;
-    V2d l1;
-    V2d l2;
-    V2d intersection_point;
-    V2d projection_point;
-    V2d normal;
-};
-
-LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2);
-
-LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l);
 
 struct Level {
     enum State {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "level.h"
+#include "rope.h"
 #include "sdl_state.h"
 #include "v2d.h"
 
