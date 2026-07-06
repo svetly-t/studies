@@ -382,6 +382,10 @@ void demo(void *vgame) {
     if (dt > 1000.0)
         dt = 1000.0;
 
+    // populate the collidable points with corners of the AABBs
+    // TODO: replace this with actual collidable points
+    rs.collidable_aabbs = level.aabbs.data();
+    rs.collidable_aabb_count = level.aabbs.size();
     RopeStateUpdate(rs, dt);
 
     kid_update_ctx.level = &level;

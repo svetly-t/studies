@@ -21,9 +21,10 @@ double singleRopeConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double d
 // prev_neighbor_idx points to the previous point in the rope array
 // it's done this way to allow new rope points to reference ones that already exist,
 // e.g. ones that are part of a laundry line
-// Returns the index of the last rope point (e.g. the tip of the rope -- the point furthest from the player)
-// kRopePoints is generally the point that holds the player
-// Returns -1 if the rope cannot be created
+// The convention is that kRopePoints is the point that holds the player
+//              therefore kRopePoints + kRopeLength is the last RopePoint in the array
+// Returns the index of the last rope point that was created in this request
+// Returns -1 if the requested rope cannot be created (e.g. no more space in the array)
 int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
     V2d pos;
     double dist;
@@ -55,6 +56,7 @@ int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_playe
         rope_points[rope_point_idx + i].next_neighbor_dist = dist;
         rope_points[rope_point_idx + i].active = true;
         rope_points[rope_point_idx + i].fixed = false;
+        rope_points[rope_point_idx + i].caught = false;
         rope_points[rope_point_idx + i].holding_player = false;
         if (i > 0) {
             rope_points[rope_point_idx + i].prev_neighbor_idx = rope_point_idx + i - 1;
@@ -101,6 +103,7 @@ void RopeStateInitialize(RopeState &rs) {
 
     for (int i = 0; i < kRopePointsTotal; ++i) {
         rope_points[i].fixed = false;
+        rope_points[i].caught = false;
         rope_points[i].active = false;
         rope_points[i].holding_player = false;
         rope_points[i].prev_neighbor_idx = -1;
@@ -115,6 +118,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
 
     V2d root_to_point;
 
+    int i, j, k;
     int prev_neighbor_idx, prev_neighbor_neighbor_idx;
     int next_neighbor_idx;
     double w1, w2;
@@ -128,7 +132,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
     RopePoint *rope_points = rs.rope_points;
 
     // Constrain all the rope points
-    for (int i = 0; i < kRopePointsTotal; ++i) {
+    for (i = 0; i < kRopePointsTotal; ++i) {
         if (!rope_points[i].active)
             continue;
 
@@ -153,7 +157,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         next_neighbor_idx = rope_points[i].next_neighbor_idx;
         next_neighbor_dist = rope_points[i].next_neighbor_dist;
 
-        if (rope_points[prev_neighbor_idx].fixed) {
+        if (rope_points[prev_neighbor_idx].fixed || rope_points[prev_neighbor_idx].caught) {
             w1 = 0.0;
             w2 = 1.0;
         } else if (rope_points[prev_neighbor_idx].holding_player) {
@@ -176,7 +180,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             w1 = 0.5;
             w2 = 0.5;
         }
-        if (rope_points[i].fixed) {
+        if (rope_points[i].fixed || rope_points[i].caught) {
             w2 = 0.0;
         }
         singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
@@ -196,11 +200,11 @@ void RopeStateUpdate(RopeState &rs, double dt) {
 
     // Do verlet integration using the previous frame's rope points and this frame's
     // See https://www.algorithm-archive.org/contents/verlet_integration/verlet_integration.html
-    for (int i = 0; i < kRopePointsTotal; ++i) {
+    for (i = 0; i < kRopePointsTotal; ++i) {
         if (!rope_points[i].active)
             continue;
 
-        if (rope_points[i].fixed)
+        if (rope_points[i].fixed || rope_points[i].caught)
             continue;
 
         acc = (rope_points[i].pos - rope_points[i].pos_prev);
@@ -225,16 +229,61 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             acc.y += gravity;
         }
 
-        current_pos = rope_points[i].pos;
+        rope_points[i].pos_current = rope_points[i].pos;
         // This is the verlet part: x(t + dt) = 2x        - x(x - dt) + a * dt**2
         //                    i.e.: next_pos  = 2*cur_pos - prev_pos  + acceleration * dt**2
-        rope_points[i].pos = current_pos * 2.0 - rope_points[i].pos_prev + acc * dt * dt;
+        rope_points[i].pos = rope_points[i].pos_current * 2.0 - rope_points[i].pos_prev + acc * dt * dt;
         // Sometimes we have dt is 0.0; in that case the kid's vel goes to infinity
         if (dt > 0.0) {
             if (rope_points[i].holding_player) {
-                rs.kid_vel = (current_pos - rope_points[i].pos_prev) / dt;
+                rs.kid_vel = (rope_points[i].pos_current - rope_points[i].pos_prev) / dt;
             }
         }
-        rope_points[i].pos_prev = current_pos;
+    }
+
+    const int kVertices = 4;
+    V2d vertices[kVertices];
+
+    for (i = kRopePoints; i < kRopePointsTotal - 1; ++i) {
+        j = i + 1;
+
+        if (!rope_points[i].active)
+            continue;
+
+        if (rope_points[i].fixed || rope_points[i].caught)
+            continue;
+
+        if (rope_points[j].fixed || rope_points[j].caught)
+            continue;
+
+        vertices[0] = rope_points[i].pos_prev;
+        vertices[1] = rope_points[i].pos;
+        vertices[2] = rope_points[j].pos;
+        vertices[3] = rope_points[j].pos_prev;
+        // loop over all collidables here
+        for (k = 0; k < rs.collidable_aabb_count; ++k) {
+            if (!PointInPolygon(rs.collidable_aabbs[k].pos, vertices, kVertices))
+                continue;
+            
+            // If i is the player's index (i.e. kRopePoint), then the next point in the chain catches.
+            // Else favor i, which should be lower in idx, and closer to the player.
+            if (i == kRopePoints) {
+                rope_points[j].caught = true;
+                rope_points[j].pos_current = rope_points[j].pos = rs.collidable_aabbs[k].pos;
+            } else {
+                rope_points[i].caught = true;
+                rope_points[i].pos_current = rope_points[i].pos = rs.collidable_aabbs[k].pos;
+            }
+        }
+    }
+
+    for (i = 0; i < kRopePointsTotal; ++i) {
+        if (!rope_points[i].active)
+            continue;
+
+        if (rope_points[i].fixed || rope_points[i].caught)
+            continue;
+
+        rope_points[i].pos_prev = rope_points[i].pos_current;
     }
 }

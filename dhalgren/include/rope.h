@@ -1,10 +1,12 @@
 #pragma once
 
 #include "v2d.h"
+#include "collisions.h"
 
 struct RopePoint {
     V2d pos;
     V2d pos_prev;
+    V2d pos_current;
 
     int prev_neighbor_idx;
     double prev_neighbor_dist;
@@ -12,6 +14,7 @@ struct RopePoint {
     int next_neighbor_idx;
     double next_neighbor_dist;
 
+    bool caught;
     bool fixed;
     bool holding_player;
     bool active;
@@ -24,6 +27,9 @@ const int kRopePointsTotal = 128;
 struct RopeState {
     int rope_point_idx;
     RopePoint rope_points[kRopePointsTotal];
+
+    int collidable_aabb_count;
+    AABB *collidable_aabbs;
 
     // These get passed from the KidUpdate to the RopeUpdate
     // depending on length of rope + KeyState
