@@ -3,6 +3,16 @@
 #include "v2d.h"
 #include "collisions.h"
 
+struct RopeParameters {
+    bool is_pole;
+    bool is_holding_player;
+    V2d pos_prev_player;
+    V2d base;
+    V2d tip;
+
+    int num_points;
+};
+
 struct RopePoint {
     V2d pos;
     V2d pos_prev;
@@ -14,6 +24,7 @@ struct RopePoint {
     int next_neighbor_idx;
     double next_neighbor_dist;
 
+    bool pole;
     bool caught;
     bool fixed;
     bool holding_player;
@@ -49,9 +60,9 @@ struct RopeState {
     double kid_stretch_timer;
 };
 
-int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
+int RopeCreate(RopeState &rs, RopeParameters p);
 
-int RopeCreateAndLink(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev);
+int RopeCreateAndLink(RopeState &rs, RopePoint &existing, RopeParameters p);
 
 void RopeStateInitialize(RopeState &rope_state);
 

@@ -18,6 +18,16 @@ double singleRopeConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double d
     return offset;
 }
 
+double singlePoleConstraint(V2d &pos1, V2d &pos2, double w2) {
+    V2d real = pos1 - pos2;
+
+    real.y = 0.0;
+
+    pos2 += real * w2;
+
+    return 1.0;
+}
+
 // prev_neighbor_idx points to the previous point in the rope array
 // it's done this way to allow new rope points to reference ones that already exist,
 // e.g. ones that are part of a laundry line
@@ -25,7 +35,7 @@ double singleRopeConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double d
 //              therefore kRopePoints + kRopeLength is the last RopePoint in the array
 // Returns the index of the last rope point that was created in this request
 // Returns -1 if the requested rope cannot be created (e.g. no more space in the array)
-int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
+int RopeCreate(RopeState &rs, RopeParameters p) {
     V2d pos;
     double dist;
     double total_dist;
@@ -34,20 +44,27 @@ int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_playe
     int rope_point_idx = rs.rope_point_idx;
     RopePoint *rope_points = rs.rope_points;
 
-    if (holding_player) {
+    bool &is_holding_player = p.is_holding_player;
+    bool &is_pole = p.is_pole;
+    V2d &pos_prev_player = p.pos_prev_player;
+    V2d &base = p.base;
+    V2d &tip = p.tip;
+    int &num_points = p.num_points;
+
+    if (is_holding_player) {
         rope_point_idx = kRopePoints;
     } else if (rope_point_idx + num_points >= kRopePoints) {
         return -1;
     }
 
-    total_dist = (p2 - p1).Magnitude();
+    total_dist = (tip - base).Magnitude();
 
     dist = total_dist / (num_points - 1);
 
     last_point_idx = num_points - 1;
 
     for (int i = 0; i <= last_point_idx; ++i) {
-        pos = p1 + (p2 - p1).Normalized() * dist * i;
+        pos = base + (tip - base).Normalized() * dist * i;
         rope_points[rope_point_idx + i].pos = pos;
         rope_points[rope_point_idx + i].pos_prev = pos;
         rope_points[rope_point_idx + i].prev_neighbor_idx = -1;
@@ -58,39 +75,42 @@ int RopeCreate(RopeState &rs, V2d p2, V2d p1, int num_points, bool holding_playe
         rope_points[rope_point_idx + i].fixed = false;
         rope_points[rope_point_idx + i].caught = false;
         rope_points[rope_point_idx + i].holding_player = false;
+        rope_points[rope_point_idx + i].pole = is_pole;
         if (i > 0) {
             rope_points[rope_point_idx + i].prev_neighbor_idx = rope_point_idx + i - 1;
         }
     }
 
-    if (!holding_player) {
+    if (!is_holding_player) {
         rope_points[rope_point_idx].fixed = true;
         rope_points[rope_point_idx + last_point_idx].fixed = true;
     }
 
-    if (holding_player) {
+    if (is_holding_player) {
         rope_points[rope_point_idx].holding_player = true;
         rope_points[rope_point_idx + last_point_idx].fixed = true;
-        rope_points[rope_point_idx].pos_prev = holding_player_pos_prev;
+        rope_points[rope_point_idx].pos_prev = pos_prev_player;
     }
 
-    if (!holding_player)
+    if (!is_holding_player)
         rs.rope_point_idx += num_points;
 
     return rope_point_idx + last_point_idx;
 }
 
 // Link a new rope to an existing RopePoint
-int RopeCreateAndLink(RopeState &rs, RopePoint &p2, V2d p1, int num_points, bool holding_player, V2d holding_player_pos_prev) {
+int RopeCreateAndLink(RopeState &rs, RopePoint &existing, RopeParameters p) {
     int new_rope_tip_idx;
 
-    new_rope_tip_idx = RopeCreate(rs, p2.pos, p1, num_points, holding_player, holding_player_pos_prev);
+    p.tip = existing.pos;
+
+    new_rope_tip_idx = RopeCreate(rs, p);
 
     if (new_rope_tip_idx == -1)
         return -1;
 
     // Link the old neighbor to the new one here...
-    rs.rope_points[new_rope_tip_idx].next_neighbor_idx = p2.prev_neighbor_idx + 1;
+    rs.rope_points[new_rope_tip_idx].next_neighbor_idx = existing.prev_neighbor_idx + 1;
     rs.rope_points[new_rope_tip_idx].fixed = false;
 
     return new_rope_tip_idx;
@@ -118,13 +138,12 @@ void RopeStateUpdate(RopeState &rs, double dt) {
 
     V2d root_to_point;
 
+    const int kFirstCollidableRopePoint = kRopePoints + 2;
     int i, j, k;
     int prev_neighbor_idx, prev_neighbor_neighbor_idx;
     int next_neighbor_idx;
     double w1, w2;
     double gravity;
-    double real_swing_dist;
-    double swing_dist_offset;
     double prev_neighbor_dist;
     double next_neighbor_dist;
 
@@ -193,7 +212,8 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             singleRopeConstraint(rope_points[i].pos, rope_points[next_neighbor_idx].pos, w1, w2, next_neighbor_dist);
         }
 
-        singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
+        // singlePoleConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, 0.1);
+        // singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
     }
 
     gravity = 80.0;
@@ -244,7 +264,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
     const int kVertices = 4;
     V2d vertices[kVertices];
 
-    for (i = kRopePoints; i < kRopePointsTotal - 1; ++i) {
+    for (i = kFirstCollidableRopePoint; i < kRopePointsTotal - 1; ++i) {
         j = i + 1;
 
         if (!rope_points[i].active)
@@ -262,10 +282,13 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         vertices[3] = rope_points[j].pos_prev;
         // loop over all collidables here
         for (k = 0; k < rs.collidable_aabb_count; ++k) {
+            // Check if the polygon created by this RopePoint and its neighbor contains one
+            // of the collidable points. If yes, then the rope is caught on a corner;
+            // if not, then check the next collidable corner
             if (!PointInPolygon(rs.collidable_aabbs[k].pos, vertices, kVertices))
                 continue;
             
-            // If i is the player's index (i.e. kRopePoint), then the next point in the chain catches.
+            // If i is the player's index (i.e. kRopePoints), then the next point in the chain catches.
             // Else favor i, which should be lower in idx, and closer to the player.
             if (i == kRopePoints) {
                 rope_points[j].caught = true;

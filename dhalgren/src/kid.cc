@@ -349,6 +349,8 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
 
     RopePoint *rp;
 
+    RopeParameters parameters;
+
     if (ks.rp != 0) {
         KidInitialize(kid);
     }
@@ -497,9 +499,20 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             } else if (kid.charge_started || ks.tp) {
                 kid.swing_anchor = KidRopeFindAnchor(kid, ctx, rp);
                 if (rp != nullptr) {
-                    RopeCreateAndLink(rs, *rp, kid.pos, kRopeLength, true, kid.prev_pos);
+                    parameters.base = kid.pos;
+                    parameters.num_points = kRopeLength;
+                    parameters.is_pole = false;
+                    parameters.is_holding_player = true;
+                    parameters.pos_prev_player = kid.prev_pos;
+                    RopeCreateAndLink(rs, *rp, parameters);
                 } else {
-                    RopeCreate(rs, kid.swing_anchor, kid.pos, kRopeLength, true, kid.prev_pos);
+                    parameters.base = kid.pos;
+                    parameters.tip = kid.swing_anchor;
+                    parameters.num_points = kRopeLength;
+                    parameters.is_pole = false;
+                    parameters.is_holding_player = true;
+                    parameters.pos_prev_player = kid.prev_pos;
+                    RopeCreate(rs, parameters);
                     rs.kid_stretch_state = RopeState::UNSTRETCHED;
                 }
                 KidSwitchState(kid, Kid::SWING);

@@ -18,6 +18,8 @@ void LevelSwitchState(Level &level, Level::State new_state) {
 }
 
 void LevelRandomPopulate(Level &level, RopeState &rs) {
+    RopeParameters p;
+
     double x, y, width, height;
 
     level.aabbs.clear();
@@ -75,7 +77,12 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
         if (rand() % 8 == 0 && i > 1) {
             // RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 10, false, false, {0, 0});
             // Old pole creation logic:
-            // RopeCreate(rs, level.aabbs[i].pos - V2d(40.0, 80.0), level.aabbs[i].pos, 10, false, true, {0, 0});
+            p.base = level.aabbs[i].pos;
+            p.tip = level.aabbs[i].pos - V2d(40.0, 80.0);
+            p.num_points = 10;
+            p.is_holding_player = false;
+            p.is_pole = true;
+            RopeCreate(rs, p);
         }
 
         if (rand() % 4 == 0) {
