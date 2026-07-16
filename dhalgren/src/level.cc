@@ -79,7 +79,7 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
             // Old pole creation logic:
             p.base = level.aabbs[i].pos;
             p.tip = level.aabbs[i].pos - V2d(40.0, 80.0);
-            p.num_points = 10;
+            p.num_points = 2;
             p.is_holding_player = false;
             p.is_pole = true;
             RopeCreate(rs, p);

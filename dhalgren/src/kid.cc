@@ -129,6 +129,8 @@ V2d KidRopeFindAnchor(Kid &kid, KidUpdateContext ctx, RopePoint *&rp) {
     for (int i = 0; i < kRopePoints; ++i) {
         if (!rs.rope_points[i].active)
             continue;
+        if (!rs.rope_points[i].pole_tip)
+            continue;
         if (AABBToPointOverlap(kid.swing_reticle, rs.rope_points[i].pos)) {
             rp = &rs.rope_points[i];
             return rs.rope_points[i].pos;

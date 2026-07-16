@@ -24,11 +24,13 @@ struct RopePoint {
     int next_neighbor_idx;
     double next_neighbor_dist;
 
-    bool pole;
     bool caught;
     bool fixed;
     bool holding_player;
     bool active;
+
+    bool pole;
+    bool pole_tip;
 };
 
 const int kRopeLength = 10;

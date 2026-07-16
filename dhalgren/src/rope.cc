@@ -18,14 +18,36 @@ double singleRopeConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double d
     return offset;
 }
 
-double singlePoleConstraint(V2d &pos1, V2d &pos2, double w2) {
-    V2d real = pos1 - pos2;
+// double singlePoleConstraint(V2d &pos1, V2d &pos2, double w1, double w2, double dist) {
+//     V2d real = (pos1 - V2d(0, dist)) - pos2;
 
-    real.y = 0.0;
+//     pos2 += real * w2;
 
-    pos2 += real * w2;
+//     // pos1 -= real * w1;
 
-    return 1.0;
+//     return 1.0;
+// }
+
+double singleJointConstraint(V2d &pos1, V2d &pos2, V2d &pos3, double w1, double w2, double dist) {
+    V2d base = (pos2 - pos1).Normalized();
+
+    // 180 degrees for now
+    V2d intended_pos = pos2 + base * dist;
+    
+    V2d real = intended_pos - pos3;
+
+    V2d dir = real.Normalized();
+
+    double offset = real.Magnitude();
+
+    // move pos1 towards pos2 by weight 1
+    pos3 += dir * offset * w2;
+
+    pos1 -= dir * offset * w1;
+    
+    pos2 -= dir * offset * w1;
+
+    return offset;
 }
 
 // prev_neighbor_idx points to the previous point in the rope array
@@ -76,6 +98,7 @@ int RopeCreate(RopeState &rs, RopeParameters p) {
         rope_points[rope_point_idx + i].caught = false;
         rope_points[rope_point_idx + i].holding_player = false;
         rope_points[rope_point_idx + i].pole = is_pole;
+        rope_points[rope_point_idx + i].pole_tip = false;
         if (i > 0) {
             rope_points[rope_point_idx + i].prev_neighbor_idx = rope_point_idx + i - 1;
         }
@@ -83,7 +106,10 @@ int RopeCreate(RopeState &rs, RopeParameters p) {
 
     if (!is_holding_player) {
         rope_points[rope_point_idx].fixed = true;
-        rope_points[rope_point_idx + last_point_idx].fixed = true;
+        // Treat this rope like a laundry line (fixed at both ends)
+        // UNLESS it is a pole, which should be wiggly at the top
+        rope_points[rope_point_idx + last_point_idx].fixed = !is_pole;
+        rope_points[rope_point_idx + last_point_idx].pole_tip = is_pole;
     }
 
     if (is_holding_player) {
@@ -137,6 +163,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
     V2d dir;
 
     V2d root_to_point;
+    V2d root_of_pole;
 
     const int kFirstCollidableRopePoint = kRopePoints + 2;
     int i, j, k;
@@ -163,6 +190,8 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         prev_neighbor_idx = rope_points[i].prev_neighbor_idx;
         prev_neighbor_dist = rope_points[i].prev_neighbor_dist;
 
+        prev_neighbor_neighbor_idx = rope_points[prev_neighbor_idx].prev_neighbor_idx;
+
         // This block only applies to the kid's ropePoints
         if (i >= kRopePoints) {
             if (rs.kid_stretch_state == RopeState::AFTER_STRETCH) {
@@ -181,13 +210,6 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             w2 = 1.0;
         } else if (rope_points[prev_neighbor_idx].holding_player) {
             switch (rs.kid_stretch_state) {
-                // case RopeState::STRETCHED:
-                //     w1 = 0.025 - rs.kid_stretch_timer;
-                //     if (w1 < 0.01) {
-                //         w1 = 0.01;
-                //     }
-                //     w2 = 1.0 - w1;
-                //     break;
                 case RopeState::UNROLLING:
                     w1 = 0.1;
                     w2 = 0.9;
@@ -201,6 +223,26 @@ void RopeStateUpdate(RopeState &rs, double dt) {
         }
         if (rope_points[i].fixed || rope_points[i].caught) {
             w2 = 0.0;
+        }
+        // Pole stuff
+        if (rope_points[i].pole) {
+            if (prev_neighbor_neighbor_idx == -1) {
+                w1 = 0.0;
+                w2 = 1.0;
+                root_of_pole = rope_points[prev_neighbor_idx].pos + V2d(0, prev_neighbor_dist);
+            } else {
+                w1 = 0.9;
+                w2 = 0.1;
+                root_of_pole = rope_points[prev_neighbor_neighbor_idx].pos;
+            }
+            if (rope_points[prev_neighbor_neighbor_idx].fixed) {
+                w1 = 0.0;
+                w2 = 1.0;
+            }
+            singleJointConstraint(root_of_pole, rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
+            if (prev_neighbor_neighbor_idx != -1 && !rope_points[prev_neighbor_neighbor_idx].fixed) {
+                rope_points[prev_neighbor_neighbor_idx].pos = root_of_pole;
+            }
         }
         singleRopeConstraint(rope_points[prev_neighbor_idx].pos, rope_points[i].pos, w1, w2, prev_neighbor_dist);
 
@@ -245,7 +287,7 @@ void RopeStateUpdate(RopeState &rs, double dt) {
             if (rs.kid_stretch_state == RopeState::STRETCHED) {
                 acc += root_to_point.Normalized() * 80.0;
             }
-        } else {
+        } else if (!rope_points[i].pole) {
             acc.y += gravity;
         }
 
