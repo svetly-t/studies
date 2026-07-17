@@ -3,6 +3,7 @@
 #include "kid.h"
 #include "kidsprite.h"
 #include "title.h"
+#include "timer.h"
 
 #include <chrono>
 
@@ -183,7 +184,9 @@ Uint32 timerTickCallBack(Uint32 iIntervalInMilliseconds, void *param) {
 struct Game {
     enum State {
         TITLE,
-        DEMO
+        DEMO,
+        LOSE,
+        WIN
     };
     State state;
 
@@ -198,6 +201,7 @@ struct Game {
     RopeState rs;
     Cursor cursor;
     Title title;
+    Timer timer;
 
     SDL_Surface *title_sprite_surface = nullptr;
     SDL_Texture *title_sprite_texture = nullptr;
@@ -367,6 +371,7 @@ void demo(void *vgame) {
     Camera &camera = game->camera;
     RopeState &rs = game->rs;
     Cursor &cursor = game->cursor;
+    Timer &timer = game->timer;
 
     SdlStatePollEvents(ks, cancel);
 
@@ -386,6 +391,7 @@ void demo(void *vgame) {
     // TODO: replace this with actual collidable points
     rs.collidable_aabbs = level.aabbs.data();
     rs.collidable_aabb_count = level.aabbs.size();
+    // rs.collidable_points = <get all the pole_tip points here...>
     RopeStateUpdate(rs, dt);
 
     kid_update_ctx.level = &level;
@@ -398,6 +404,13 @@ void demo(void *vgame) {
     KidUpdate(kid, kid_update_ctx);
 
     // KidSpriteUpdate(kid_sprite, kid, dt);
+
+    TimerUpdate(timer, dt);
+
+    if (timer.seconds <= 0.0) {
+        game->state = Game::LOSE;
+        return;
+    }
 
     CameraUpdate(camera, kid, ks, dt);
 
@@ -557,6 +570,12 @@ void demo(void *vgame) {
     SDL_UpdateWindowSurface(sdl_state.sdl_window);
 }
 
+void losescreen(void *vgame) {
+    
+}
+
+void winscreen(void *vgame) {}
+
 void gameloop(void *vgame) {
     Game *game = (Game*)vgame;
     switch (game->state) {
@@ -565,6 +584,12 @@ void gameloop(void *vgame) {
             break;
         case Game::DEMO:
             demo(vgame);
+            break;
+        case Game::LOSE:
+            losescreen(vgame);
+            break;
+        case Game::WIN:
+            winscreen(vgame);
             break;
     }
 }
@@ -588,6 +613,7 @@ int main(int argc, char **argv) {
     LevelInitialize(game.level, screenWidth, screenHeight);
     RopeStateInitialize(game.rs);
     TitleInitialize(game.title);
+    TimerInitialize(game.timer);
 
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop_arg(gameloop, (void*)&game, 0, 1);
