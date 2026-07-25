@@ -10,6 +10,8 @@
 
 struct Level {
     enum State {
+        PLAYING,
+        EDITING,
         READY_BOX,
         READY_LINE,
         ADJUST_BOX,
@@ -24,12 +26,15 @@ struct Level {
     int window_x;
     int window_y;
 
+    int prev_index;
+
     AABB aabb;
     std::vector<AABB> aabbs;
+    std::vector<unsigned> aabbs_colors;
 
     std::vector<Circle> circles;
 };
 
 void LevelInitialize(Level &level, int window_x, int window_y);
 
-void LevelUpdate(Level &level, RopeState& rs, KeyState &ks, V2d mouse_pos, double dt);
+void LevelUpdate(Level &level, RopeState& rs, KeyState &ks, V2d mouse_pos);

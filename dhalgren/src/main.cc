@@ -25,7 +25,7 @@ struct Camera {
     double zoom = 1.0;
 };
 
-V2d CalculateMousePosInWorld(Camera &camera, KeyState &ks, double dt) {
+V2d CalculateMousePosInWorld(Camera &camera, KeyState &ks) {
     V2d origin;
     V2d transform_screen = { (double)screenWidth / 2, (double)screenHeight / 2 };
     V2d ks_mp = { (double)ks.mx, (double)ks.my };
@@ -53,7 +53,7 @@ struct Cursor {
 };
 
 void CursorUpdate(Cursor &cursor, Camera &camera, KeyState &ks, double dt) {
-    V2d mouse_pos = CalculateMousePosInWorld(camera, ks, dt);
+    V2d mouse_pos = CalculateMousePosInWorld(camera, ks);
 
     if (ks.mlc == 0) {
         cursor.timer = 0;
@@ -93,7 +93,7 @@ void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, DrawTexture draw_text
     V2d &pos = draw_texture.pos;
     double &angle = draw_texture.angle;
     bool &flip = draw_texture.flip;
-    
+
     switch (draw_texture.space) {
         case DrawTexture::WORLDSPACE:
             offset_to_center.x = dst.w / 2.0;
@@ -120,6 +120,18 @@ void DrawTextureAtV2d(SdlState &sdl_state, Camera &camera, DrawTexture draw_text
     }
 
     SDL_RenderCopyEx(sdl_state.sdl_renderer, draw_texture.texture, &src, &dst, angle, nullptr, renderer_flip);
+}
+
+void DrawSetRenderColor(SdlState &sdl_state, unsigned &saved_color, unsigned color) {
+    if (color != saved_color) {
+        saved_color = color;
+        SDL_SetRenderDrawColor(
+            sdl_state.sdl_renderer, 
+            (color >> 16) & 0xFF,
+            (color >> 8) & 0xFF, 
+            (color) & 0xFF, 255
+        );
+    }
 }
 
 // The width and height are the box size in pixels at zoom = 1.0.
@@ -214,8 +226,24 @@ struct Game {
     SDL_Texture *dither_texture = nullptr;
     int sprite_size;
 
+    TTF_Font *tinos_font = nullptr;
+    SDL_Surface *lose_surface = nullptr;
+    SDL_Texture *lose_texture = nullptr;
+    int lose_texture_w, lose_texture_h;
+    SDL_Surface *win_surface = nullptr;
+    SDL_Texture *win_texture = nullptr;
+
     std::chrono::steady_clock::time_point end_of_update_clock;
 };
+
+void GameTextInitialize(Game &game) {
+    SDL_Color color;
+    color.r = color.g = color.b = 255;
+    game.tinos_font = TTF_OpenFont("./img/Tinos-Regular.ttf", 12);
+    game.lose_surface = TTF_RenderUTF8_Solid_Wrapped(game.tinos_font, "you lose!", color, 200);
+    game.lose_texture = SDL_CreateTextureFromSurface(game.sdl_state.sdl_renderer, game.lose_surface);
+    SDL_QueryTexture(game.lose_texture, nullptr, nullptr, &game.lose_texture_w, &game.lose_texture_h);
+}
 
 void GameSpritesInitialize(Game &game) {
     SdlSpriteLoad(game.title_sprite_surface, game.title_sprite_texture, game.sdl_state.sdl_renderer, "./img/title-simple.png");
@@ -288,11 +316,11 @@ void title(void *vgame) {
     double dt;
     bool cancel = false;
 
-    Game *game = (Game*)vgame;    
+    Game *game = (Game*)vgame;
     Title &title = game->title;
     KeyState &ks = game->ks;
     SdlState &sdl_state = game->sdl_state;
-    auto &end_of_update_clock = game->end_of_update_clock; 
+    auto &end_of_update_clock = game->end_of_update_clock;
 
     SdlStatePollEvents(ks, cancel);
 
@@ -350,8 +378,10 @@ void title(void *vgame) {
 
 void demo(void *vgame) {
     double dt;
+    double dt_game;
     bool cancel = false;
     double meters_per_pixel = 0.1;
+    unsigned saved_color = 0x0;
     KidUpdateContext kid_update_ctx;
     DrawTexture texture;
     V2d mouse_pos;
@@ -364,7 +394,7 @@ void demo(void *vgame) {
     KeyState &ks_prev = game->ks_prev;
     KeyState &ks = game->ks;
     SdlState &sdl_state = game->sdl_state;
-    auto &end_of_update_clock = game->end_of_update_clock; 
+    auto &end_of_update_clock = game->end_of_update_clock;
     Level &level = game->level;
     Kid &kid = game->kid;
     // KidSprite &kid_sprite = game->kid_sprite;
@@ -386,26 +416,30 @@ void demo(void *vgame) {
     dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-end_of_update_clock).count() / 1000000.0;
     if (dt > 1000.0)
         dt = 1000.0;
+    
+    dt_game = dt;
+    if (level.state != Level::PLAYING)
+        dt_game = 0;
 
     // populate the collidable points with corners of the AABBs
     // TODO: replace this with actual collidable points
     rs.collidable_aabbs = level.aabbs.data();
     rs.collidable_aabb_count = level.aabbs.size();
     // rs.collidable_points = <get all the pole_tip points here...>
-    RopeStateUpdate(rs, dt);
+    RopeStateUpdate(rs, dt_game);
 
     kid_update_ctx.level = &level;
     kid_update_ctx.ks = &ks;
     kid_update_ctx.rs = &rs;
     kid_update_ctx.ks_prev = &ks_prev;
-    kid_update_ctx.dt = dt;
+    kid_update_ctx.dt = dt_game;
     kid_update_ctx.meters_per_pixel = meters_per_pixel;
-    kid_update_ctx.mouse_pos = CalculateMousePosInWorld(camera, ks, dt);
+    kid_update_ctx.mouse_pos = CalculateMousePosInWorld(camera, ks);
     KidUpdate(kid, kid_update_ctx);
 
     // KidSpriteUpdate(kid_sprite, kid, dt);
 
-    TimerUpdate(timer, dt);
+    TimerUpdate(timer, dt_game);
 
     if (timer.seconds <= 0.0) {
         game->state = Game::LOSE;
@@ -414,7 +448,7 @@ void demo(void *vgame) {
 
     CameraUpdate(camera, kid, ks, dt);
 
-    LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks, dt), dt);
+    LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks));
 
     CursorUpdate(cursor, camera, ks, dt);
 
@@ -463,11 +497,11 @@ void demo(void *vgame) {
     SDL_FillRect(sdl_state.sdl_surface, NULL, SDL_MapRGB(sdl_state.sdl_surface->format, 0, 0, 0));
 
     SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 255, 255, 255);
-    
+
     for (auto &circle : level.circles) {
         DrawCircle(sdl_state, camera, circle);
     }
-    
+
     // Drawing the dither on top of the clouds
     {
         texture.src.x = texture.src.y = 0;
@@ -548,9 +582,12 @@ void demo(void *vgame) {
 
     DrawAABB(sdl_state, camera, level.aabb);
 
-    for (auto &aabb : level.aabbs) {
-        DrawAABB(sdl_state, camera, aabb);
+    for (int i = 0; i < level.aabbs.size(); ++i) {
+        DrawSetRenderColor(sdl_state, saved_color, level.aabbs_colors[i]);
+        DrawAABB(sdl_state, camera, level.aabbs[i]);
     }
+
+    DrawSetRenderColor(sdl_state, saved_color, 0xFFFFFF);
 
     // Draw level test line
     DrawLine(sdl_state, camera, level.l1, level.l2);
@@ -570,12 +607,6 @@ void demo(void *vgame) {
     SDL_UpdateWindowSurface(sdl_state.sdl_window);
 }
 
-void losescreen(void *vgame) {
-    
-}
-
-void winscreen(void *vgame) {}
-
 void gameloop(void *vgame) {
     Game *game = (Game*)vgame;
     switch (game->state) {
@@ -586,10 +617,10 @@ void gameloop(void *vgame) {
             demo(vgame);
             break;
         case Game::LOSE:
-            losescreen(vgame);
+            // losescreen(vgame);
             break;
         case Game::WIN:
-            winscreen(vgame);
+            // winscreen(vgame);
             break;
     }
 }
@@ -608,6 +639,7 @@ int main(int argc, char **argv) {
     SdlStateInitialize(game.sdl_state, screenWidth, screenHeight);
     GameSpritesInitialize(game);
     GameDitherInitialize(game);
+    GameTextInitialize(game);
     // KidSpriteInitialize(game.kid_sprite, game.sdl_state.sdl_renderer);
     KidInitialize(game.kid);
     LevelInitialize(game.level, screenWidth, screenHeight);
