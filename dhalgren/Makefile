@@ -12,9 +12,9 @@ EXE := kid
 SRC := $(wildcard $(SRC_DIR)/*.cc)
 OBJ := $(SRC:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
 
-CXX := g++
+CXX := g++ -Wimplicit-fallthrough
 CXXFLAGS := -std=c++11 -g -Iinclude -MMD -MP
-BASELDFLAGS := -lSDL2main -lSDL2 -lSDL2_image
+BASELDFLAGS := -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf
 
 # If the builtin OS variable contains "Windows",
 # then prepend lmingw32 to the libraries

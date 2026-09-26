@@ -55,7 +55,23 @@ For intellisense support, your `.vscode/c_cpp_properties.json` should look somet
 
 ## Steps for mac
 
+On Intel-macs:
+
 It's been too long, but I think you just need to `brew install sdl2 sdl2_image sdl2_ttf`?
+
+On silicon-macs:
+
+- Go to the SDL releases on github. (https://github.com/libsdl-org/SDL/releases)
+- Find the most recent SDL2 release.
+- Download `SDL2-2.**.*.zip`. As of writing the most recent version was `2.32.6`.
+- Per INSTALL.txt:
+```
+    macOS from the command line:
+    * Run './configure; make; make install'
+    * (Note: I had to run 'sudo su' beforehand, otherwise permission failure)
+```
+- Do the same thing for SDL2_image (I used version `2.8.12`) and SDL2_ttf (`2.24.0`).
+
 
 ## emscripten install
 

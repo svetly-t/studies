@@ -306,41 +306,41 @@ void RopeStateUpdate(RopeState &rs, double dt) {
     const int kVertices = 4;
     V2d vertices[kVertices];
 
-    for (i = kFirstCollidableRopePoint; i < kRopePointsTotal - 1; ++i) {
-        j = i + 1;
+    // for (i = kFirstCollidableRopePoint; i < kRopePointsTotal - 1; ++i) {
+    //     j = i + 1;
 
-        if (!rope_points[i].active)
-            continue;
+    //     if (!rope_points[i].active)
+    //         continue;
 
-        if (rope_points[i].fixed || rope_points[i].caught)
-            continue;
+    //     if (rope_points[i].fixed || rope_points[i].caught)
+    //         continue;
 
-        if (rope_points[j].fixed || rope_points[j].caught)
-            continue;
+    //     if (rope_points[j].fixed || rope_points[j].caught)
+    //         continue;
 
-        vertices[0] = rope_points[i].pos_prev;
-        vertices[1] = rope_points[i].pos;
-        vertices[2] = rope_points[j].pos;
-        vertices[3] = rope_points[j].pos_prev;
-        // loop over all collidables here
-        for (k = 0; k < rs.collidable_aabb_count; ++k) {
-            // Check if the polygon created by this RopePoint and its neighbor contains one
-            // of the collidable points. If yes, then the rope is caught on a corner;
-            // if not, then check the next collidable corner
-            if (!PointInPolygon(rs.collidable_aabbs[k].pos, vertices, kVertices))
-                continue;
+    //     vertices[0] = rope_points[i].pos_prev;
+    //     vertices[1] = rope_points[i].pos;
+    //     vertices[2] = rope_points[j].pos;
+    //     vertices[3] = rope_points[j].pos_prev;
+    //     // loop over all collidables here
+    //     for (k = 0; k < rs.collidable_aabb_count; ++k) {
+    //         // Check if the polygon created by this RopePoint and its neighbor contains one
+    //         // of the collidable points. If yes, then the rope is caught on a corner;
+    //         // if not, then check the next collidable corner
+    //         if (!PointInPolygon(rs.collidable_aabbs[k].pos, vertices, kVertices))
+    //             continue;
             
-            // If i is the player's index (i.e. kRopePoints), then the next point in the chain catches.
-            // Else favor i, which should be lower in idx, and closer to the player.
-            if (i == kRopePoints) {
-                rope_points[j].caught = true;
-                rope_points[j].pos_current = rope_points[j].pos = rs.collidable_aabbs[k].pos;
-            } else {
-                rope_points[i].caught = true;
-                rope_points[i].pos_current = rope_points[i].pos = rs.collidable_aabbs[k].pos;
-            }
-        }
-    }
+    //         // If i is the player's index (i.e. kRopePoints), then the next point in the chain catches.
+    //         // Else favor i, which should be lower in idx, and closer to the player.
+    //         if (i == kRopePoints) {
+    //             rope_points[j].caught = true;
+    //             rope_points[j].pos_current = rope_points[j].pos = rs.collidable_aabbs[k].pos;
+    //         } else {
+    //             rope_points[i].caught = true;
+    //             rope_points[i].pos_current = rope_points[i].pos = rs.collidable_aabbs[k].pos;
+    //         }
+    //     }
+    // }
 
     for (i = 0; i < kRopePointsTotal; ++i) {
         if (!rope_points[i].active)

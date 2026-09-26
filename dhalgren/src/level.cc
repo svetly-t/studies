@@ -51,16 +51,19 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
 
     double x, y, width, height;
 
+    level.aabbs_colors.clear();
     level.aabbs.clear();
     level.aabb.height = 0;
     level.aabb.width = 0;
+
+    level.circles.clear();
 
     // Always place a box directly beneath origin so that the player has something to fall on
     x = -50;
     y = 100;
     width = 100.0;
     height = 100.0;
-    level.aabbs.push_back(AABB{
+    LevelAddBox(level, AABB{
         .pos = { x, y },
         .width = width,
         .height = height
@@ -188,45 +191,51 @@ void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d mouse_pos) {
 
     switch (level.state) {
         case Level::PLAYING:
-            if (ks.ep != 0) {
+            if (ks.lp != 0) {
                 LevelSwitchState(level, Level::EDITING);
-                break;
-            }
-            break;
-        case Level::EDITING:
-            if (ks.ep != 0) {
-                LevelSwitchState(level, Level::PLAYING);
                 break;
             }
             if (ks.rp != 0) {
                 LevelSwitchState(level, Level::RANDOM_POPULATE_START);
                 break;
             }
-            if (ks.sp != 0) {
-                LevelSave(level);
-            }
+            break;
+        case Level::EDITING:
             if (ks.lp != 0) {
-                LevelLoad(level);
+                LevelSwitchState(level, Level::PLAYING);
+                break;
             }
+            // if (ks.sp != 0) {
+            //     LevelSave(level);
+            // }
+            // if (ks.lp != 0) {
+            //     LevelLoad(level);
+            // }
             if (ks.mlc != 0) {
                 LevelSwitchState(level, Level::READY_BOX);
-                level.aabb.pos = mouse_pos;
+                // level.aabb.pos = mouse_pos;
                 break;
             }
             break;
         case Level::READY_BOX:
             box_index = LevelGetIndexOfBoxAtMouse(level, mouse_pos);
 
-            if (box_index > 0) {
+            if (box_index >= 0) {
                 level.aabbs_colors[box_index] = 0xFF0000;
             }
 
-            if (box_index > 0 && ks.mrcp != 0) {
+            if (box_index >= 0 && ks.mrcp != 0) {
                 if (LevelRemoveBox(level, box_index))
                     break;
             }
 
-            if (ks.ep != 0) {
+            if (ks.mlcp != 0) {
+                LevelSwitchState(level, Level::ADJUST_BOX);
+                level.aabb.pos = mouse_pos;
+                break;
+            }
+
+            if (ks.lp != 0) {
                 LevelSwitchState(level, Level::EDITING);
                 break;
             }
@@ -238,7 +247,7 @@ void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d mouse_pos) {
             break;
         case Level::RANDOM_POPULATE_DONE:
             if (ks.rp == 0) {
-                LevelSwitchState(level, Level::READY_BOX);
+                LevelSwitchState(level, Level::PLAYING);
                 break;
             }
             break;
@@ -258,6 +267,8 @@ void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d mouse_pos) {
                 LevelSwitchState(level, Level::READY_BOX);
                 break;
             }
+            break;
+        default:
             break;
     }
 }

@@ -26,21 +26,27 @@ struct Camera {
 };
 
 V2d CalculateMousePosInWorld(Camera &camera, KeyState &ks) {
-    V2d origin;
     V2d transform_screen = { (double)screenWidth / 2, (double)screenHeight / 2 };
     V2d ks_mp = { (double)ks.mx, (double)ks.my };
 
-    origin = camera.pos - transform_screen;
-
-    return origin + ks_mp;
+    return camera.pos - transform_screen / camera.zoom + ks_mp / camera.zoom;
 }
 
-void CameraUpdate(Camera &camera, Kid &kid, KeyState &ks, double dt) {
-    if (ks.z) {
-        camera.zoom += (0.5 - camera.zoom) * dt * 4.0;
-    } else {
-        camera.zoom += (1.0 - camera.zoom) * dt * 4.0;
+void CameraUpdate(Camera &camera, Level &level, Kid &kid, KeyState &ks, double dt) {
+    double intended_zoom = 1.0;
+
+    switch (level.state) {
+        case Level::PLAYING:
+        case Level::RANDOM_POPULATE_START:
+        case Level::RANDOM_POPULATE_DONE:
+            intended_zoom = 1.0;
+            break;
+        default:
+            intended_zoom = 0.5;
+            break;
     }
+
+    camera.zoom += (intended_zoom - camera.zoom) * dt * 4.0;
 
     camera.pos += (kid.pos - camera.pos) * dt * 2.0;
 }
@@ -384,8 +390,7 @@ void demo(void *vgame) {
     unsigned saved_color = 0x0;
     KidUpdateContext kid_update_ctx;
     DrawTexture texture;
-    V2d mouse_pos;
-    V2d rnd_pos;
+    V2d pos;
     SDL_Rect src;
     SDL_Rect dst;
     SDL_Rect display;
@@ -401,7 +406,6 @@ void demo(void *vgame) {
     Camera &camera = game->camera;
     RopeState &rs = game->rs;
     Cursor &cursor = game->cursor;
-    Timer &timer = game->timer;
 
     SdlStatePollEvents(ks, cancel);
 
@@ -439,16 +443,9 @@ void demo(void *vgame) {
 
     // KidSpriteUpdate(kid_sprite, kid, dt);
 
-    TimerUpdate(timer, dt_game);
+    CameraUpdate(camera, level, kid, ks, dt);
 
-    if (timer.seconds <= 0.0) {
-        game->state = Game::LOSE;
-        return;
-    }
-
-    CameraUpdate(camera, kid, ks, dt);
-
-    LevelUpdate(level, rs, ks, CalculateMousePosInWorld(camera, ks));
+    LevelUpdate(level, rs, ks, kid_update_ctx.mouse_pos);
 
     CursorUpdate(cursor, camera, ks, dt);
 
@@ -518,12 +515,12 @@ void demo(void *vgame) {
     switch (kid.state) {
         case Kid::SPLAT:
             texture.src.x = texture.src.y = 0;
-            texture.src.h = texture.src.w = 64;
+            texture.src.h = texture.src.w = 32;
             texture.dst.h = texture.dst.w = 14;
-            rnd_pos.x = rand() % 4;
-            rnd_pos.y = rand() % 4;
-            rnd_pos /= kid.state_timer + 1.0;
-            texture.pos = kid.visual_pos + rnd_pos;
+            pos.x = rand() % 4;
+            pos.y = rand() % 4;
+            pos /= kid.state_timer + 1.0;
+            texture.pos = kid.visual_pos + pos;
             texture.texture = game->exclamation_sprite_texture;
             texture.space = DrawTexture::WORLDSPACE;
             DrawTextureAtV2d(sdl_state, camera, texture);
@@ -578,11 +575,30 @@ void demo(void *vgame) {
         DrawLine(sdl_state, camera, rs.rope_points[rs.rope_points[i].prev_neighbor_idx].pos, rs.rope_points[i].pos);
     }
 
-    DrawBoxAtV2d(sdl_state, camera, mouse_pos, 2, 2, false);
+    // Drawing the mouse pointer
+    switch (level.state) {
+        case Level::PLAYING:
+            pos = kid_update_ctx.mouse_pos;
+            DrawBoxAtV2d(sdl_state, camera, pos, 2, 2, false);
+            break;
+        case Level::ADJUST_BOX:
+            DrawSetRenderColor(sdl_state, saved_color, 0xFFFFFF);
+            DrawAABB(sdl_state, camera, level.aabb);
+            break;
+        case Level::READY_BOX:
+            pos = kid_update_ctx.mouse_pos;
+            DrawBoxAtV2d(sdl_state, camera, pos + V2d(8, -24), 16, 16, false);
+        default:
+            pos = kid_update_ctx.mouse_pos;
+            DrawLine(sdl_state, camera, pos - V2d(0, 16), pos + V2d(0, 16));
+            DrawLine(sdl_state, camera, pos - V2d(16, 0), pos + V2d(16, 0));
+            break;
+    }
+    
+    // Drawing the level boxes
+    DrawSetRenderColor(sdl_state, saved_color, 0xFFFFFF);
 
-    DrawAABB(sdl_state, camera, level.aabb);
-
-    for (int i = 0; i < level.aabbs.size(); ++i) {
+    for (int i = 0; i < level.aabbs.size(); i++) {
         DrawSetRenderColor(sdl_state, saved_color, level.aabbs_colors[i]);
         DrawAABB(sdl_state, camera, level.aabbs[i]);
     }
@@ -594,15 +610,6 @@ void demo(void *vgame) {
 
     // Draw kid velocity line
     DrawLine(sdl_state, camera, kid.pos, kid.pos + kid.vel);
-
-    LineToLineIntersection isct = AABBToLineIntersect(level.aabb, level.l1, level.l2);
-    if (isct.exists) {
-        // Draw level test line
-        SDL_SetRenderDrawColor(sdl_state.sdl_renderer, 255, 0, 0, 255);
-        DrawBoxAtV2d(sdl_state, camera, isct.intersection_point, 4, 4, false);
-        DrawBoxAtV2d(sdl_state, camera, isct.projection_point, 4, 4, false);
-        DrawLine(sdl_state, camera, isct.projection_point, isct.projection_point + isct.normal * 8.0);
-    }
 
     SDL_UpdateWindowSurface(sdl_state.sdl_window);
 }
