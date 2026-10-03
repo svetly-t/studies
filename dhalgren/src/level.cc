@@ -58,6 +58,8 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
 
     level.circles.clear();
 
+    level.aabb_currently_selected = -1;
+
     // Always place a box directly beneath origin so that the player has something to fall on
     x = -50;
     y = 100;
@@ -222,6 +224,11 @@ void LevelUpdate(Level &level, RopeState &rs, KeyState &ks, V2d mouse_pos) {
 
             if (box_index >= 0) {
                 level.aabbs_colors[box_index] = 0xFF0000;
+            }
+
+            if (box_index != level.aabb_currently_selected) {
+                level.aabbs_colors[level.aabb_currently_selected] = 0xFFFFFF;
+                level.aabb_currently_selected = box_index;
             }
 
             if (box_index >= 0 && ks.mrcp != 0) {

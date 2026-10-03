@@ -31,6 +31,7 @@ struct Level {
     AABB aabb;
     std::vector<AABB> aabbs;
     std::vector<unsigned> aabbs_colors;
+    int aabb_currently_selected;
 
     std::vector<Circle> circles;
 };

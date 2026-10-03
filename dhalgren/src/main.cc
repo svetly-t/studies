@@ -63,14 +63,14 @@ void CursorUpdate(Cursor &cursor, Camera &camera, KeyState &ks, double dt) {
 
     if (ks.mlc == 0) {
         cursor.timer = 0;
-        cursor.radius = 50.0;
+        // cursor.radius = 50.0;
     } else if (ks.mlcp) {
         cursor.initial_pos = mouse_pos;
     } else if (ks.mlc) {
         // cursor.pos = cursor.initial_pos + (mouse_pos - cursor.initial_pos) * 0.9;
         cursor.pos = mouse_pos;
         cursor.timer += dt;
-        cursor.radius = 50.0 + 200.0 / (cursor.timer * 50.0 + 1.0);
+        // cursor.radius = 50.0 + 200.0 / (cursor.timer * 50.0 + 1.0);
     }
 }
 
