@@ -11,7 +11,6 @@
 struct Level {
     enum State {
         PLAYING,
-        EDITING,
         READY_BOX,
         READY_LINE,
         ADJUST_BOX,
@@ -32,6 +31,11 @@ struct Level {
     std::vector<AABB> aabbs;
     std::vector<unsigned> aabbs_colors;
     int aabb_currently_selected;
+
+    Line line;
+    std::vector<Line> lines;
+    std::vector<unsigned> lines_colors;
+    int line_currently_selected;
 
     std::vector<Circle> circles;
 };

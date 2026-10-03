@@ -588,6 +588,19 @@ void demo(void *vgame) {
         case Level::READY_BOX:
             pos = kid_update_ctx.mouse_pos;
             DrawBoxAtV2d(sdl_state, camera, pos + V2d(8, -24), 16, 16, false);
+            DrawLine(sdl_state, camera, pos - V2d(0, 16), pos + V2d(0, 16));
+            DrawLine(sdl_state, camera, pos - V2d(16, 0), pos + V2d(16, 0));
+            break;
+        case Level::ADJUST_LINE:
+            DrawSetRenderColor(sdl_state, saved_color, 0xFFFFFF);
+            DrawLine(sdl_state, camera, level.line.p1, level.line.p2);
+            break;
+        case Level::READY_LINE:
+            pos = kid_update_ctx.mouse_pos;
+            DrawLine(sdl_state, camera, pos + V2d(8, -24), pos + V2d(24, -8));
+            DrawLine(sdl_state, camera, pos - V2d(0, 16), pos + V2d(0, 16));
+            DrawLine(sdl_state, camera, pos - V2d(16, 0), pos + V2d(16, 0));
+            break;
         default:
             pos = kid_update_ctx.mouse_pos;
             DrawLine(sdl_state, camera, pos - V2d(0, 16), pos + V2d(0, 16));
@@ -601,6 +614,11 @@ void demo(void *vgame) {
     for (int i = 0; i < level.aabbs.size(); i++) {
         DrawSetRenderColor(sdl_state, saved_color, level.aabbs_colors[i]);
         DrawAABB(sdl_state, camera, level.aabbs[i]);
+    }
+
+    for (int i = 0; i < level.lines.size(); i++) {
+        DrawSetRenderColor(sdl_state, saved_color, level.lines_colors[i]);
+        DrawLine(sdl_state, camera, level.lines[i].p1, level.lines[i].p2);
     }
 
     DrawSetRenderColor(sdl_state, saved_color, 0xFFFFFF);
