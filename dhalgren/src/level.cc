@@ -52,7 +52,7 @@ bool LevelRemoveBox(Level &level, int index) {
 }
 
 int LevelGetIndexOfBoxAtMouse(Level &level, V2d mouse_pos) {
-    for (size_t i = 0; i < level.aabbs.size(); ++i) {
+    for (int i = 0; i < level.aabbs.size(); ++i) {
         if (AABBToPointOverlap(level.aabbs[i], mouse_pos)) {
             return i;
         }
@@ -66,7 +66,9 @@ void LevelUpdateBoxColor(Level &level, int box_index) {
     }
 
     if (box_index != level.aabb_currently_selected) {
-        level.aabbs_colors[level.aabb_currently_selected] = 0xFFFFFF;
+        if (level.aabb_currently_selected >= 0) {
+            level.aabbs_colors[level.aabb_currently_selected] = 0xFFFFFF;
+        }
         level.aabb_currently_selected = box_index;
     }
 }

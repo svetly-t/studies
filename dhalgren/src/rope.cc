@@ -177,6 +177,9 @@ void RopeStateUpdate(RopeState &rs, double dt) {
     int &rope_point_idx = rs.rope_point_idx;
     RopePoint *rope_points = rs.rope_points;
 
+    if (dt == 0.0)
+        return;
+
     // Constrain all the rope points
     for (i = 0; i < kRopePointsTotal; ++i) {
         if (!rope_points[i].active)

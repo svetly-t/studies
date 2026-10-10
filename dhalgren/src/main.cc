@@ -331,11 +331,7 @@ void title(void *vgame) {
     SdlStatePollEvents(ks, cancel);
 
     if (cancel) {
-        #ifdef __EMSCRIPTEN__
-        emscripten_cancel_main_loop();  /* this should "kill" the app. */
-        #else
         exit(0);
-        #endif
     }
 
     dt = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-end_of_update_clock).count() / 1000000.0;
