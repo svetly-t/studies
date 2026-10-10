@@ -50,8 +50,8 @@ struct KidCollision {
 
 void KidCollisionCheck(
     Kid &kid,
-    KidUpdateContext ctx,
-    KidCollision &kid_collision
+    KidCollision &kid_collision,
+    KidUpdateContext ctx
 ) {
     V2d pos_to_isct;
     V2d downward;
@@ -290,7 +290,7 @@ const double kFallSpeed = 160.0;
 const double kPi = 3.14159;
 
 // Return true if Kid hits the ground, false otherwise
-bool KidJumpUpdate(Kid &kid, KidUpdateContext ctx, KidCollision &kid_collision) {
+bool KidJumpUpdate(Kid &kid, KidCollision &kid_collision, KidUpdateContext ctx) {
     KeyState ks = *(ctx.ks);
     double dt = ctx.dt;
 
@@ -299,7 +299,7 @@ bool KidJumpUpdate(Kid &kid, KidUpdateContext ctx, KidCollision &kid_collision) 
     // overwritten by the KidCollision func, and we need kid.vel.y to determine
     // if this collision is a SPLAT or not.
     kid.speed = kid.vel.y;
-    KidCollisionCheck(kid, ctx, kid_collision);
+    KidCollisionCheck(kid, kid_collision, ctx);
     if (kid_collision.velocity_isct.exists) {
         if (kid_collision.velocity_isct.normal.y < 0.0) {
             if (abs(kid.speed) < 100.0) {
@@ -392,7 +392,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
         case Kid::STAND:
             kid.vel.x = 0;
             kid.vel.y = 0;
-            KidCollisionCheck(kid, ctx, kid_collision);
+            KidCollisionCheck(kid, kid_collision, ctx);
             KidVisualUpdate(kid, ctx, false);
             KidStarUpdate(kid, ctx, 1.0);
             if (ks.x != 0) {
@@ -435,7 +435,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             // logarithmic:
             //     kid.vel.x = 20.0 * ks.x * log(32.0 * kid.state_timer + 1.0);
             //     kid.angle += kid.vel.x * 16.0 * dt;
-            KidCollisionCheck(kid, ctx, kid_collision);
+            KidCollisionCheck(kid, kid_collision, ctx);
             kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1);
             KidVisualUpdate(kid, ctx, false);
@@ -466,7 +466,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             kid.pos.x += kid.vel.x * dt;
             KidStarUpdate(kid, ctx, 1.1);
             KidVisualUpdate(kid, ctx, false);
-            KidCollisionCheck(kid, ctx, kid_collision);
+            KidCollisionCheck(kid, kid_collision, ctx);
             if (!kid_collision.ground_isct.exists) {
                 KidSwitchState(kid, Kid::JUMP);
                 break;
@@ -490,7 +490,7 @@ void KidUpdate(Kid &kid, KidUpdateContext ctx) {
             }
             break;
         case Kid::JUMP:
-            if (KidJumpUpdate(kid, ctx, kid_collision))
+            if (KidJumpUpdate(kid, kid_collision, ctx))
                 break;
             if (ks.s == 0 && ks.spcp > 0) {
                 kid.charge_started = true;

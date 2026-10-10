@@ -37,3 +37,6 @@ struct LineToLineIntersection {
 LineToLineIntersection AABBToLineIntersect(AABB &aabb, V2d i1, V2d i2);
 
 LineToLineIntersection AABBToLineIntersect(AABB &aabb, Line l);
+
+LineToLineIntersection LineToLineIntersect(V2d l1, V2d l2, V2d i1, V2d i2);
+

@@ -81,10 +81,18 @@ void LevelAddLine(Level &level, Line line) {
     level.lines_colors.push_back(0xFFFFFF);
 }
 
+void LevelAddDude(Level &level, Dude dude) {
+    dude.kind = Dude::RUNNING;
+    level.dudes.push_back(dude);
+    level.dudes_colors.push_back(0xFFFFFF);
+}
+
 void LevelRandomPopulate(Level &level, RopeState &rs) {
     RopeParameters p;
 
     double x, y, width, height;
+
+    int random_num;
 
     level.aabbs_colors.clear();
     level.aabbs.clear();
@@ -99,6 +107,9 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
     level.line_currently_selected = -1;
 
     level.circles.clear();
+
+    level.dudes_colors.clear();
+    level.dudes.clear();
 
     // Always place a box directly beneath origin so that the player has something to fall on
     x = -50;
@@ -148,7 +159,16 @@ void LevelRandomPopulate(Level &level, RopeState &rs) {
             .height = height,
         });
 
-        if (rand() % 8 == 0 && i > 1) {
+        // 1 in 8 chance: add a dude on top on the box we just placed
+        random_num = rand();
+
+        if (random_num % 8 == 0) {
+            LevelAddDude(level, Dude{
+                .pos = { x, y }
+            });
+        }
+
+        if (random_num % 8 == 0 && i > 1) {
             // RopeAdd(rs, level.aabbs[i].pos, level.aabbs[i - 1].pos, 10, false, false, {0, 0});
             // Old pole creation logic:
             p.base = level.aabbs[i].pos;

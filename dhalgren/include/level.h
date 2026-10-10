@@ -4,6 +4,7 @@
 #include "sdl_state.h"
 #include "collisions.h"
 #include "rope.h"
+#include "dude.h"
 
 #include <unordered_map>
 #include <vector>
@@ -36,6 +37,9 @@ struct Level {
     std::vector<Line> lines;
     std::vector<unsigned> lines_colors;
     int line_currently_selected;
+
+    std::vector<Dude> dudes;
+    std::vector<unsigned> dudes_colors;
 
     std::vector<Circle> circles;
 };
